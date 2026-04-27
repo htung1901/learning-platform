@@ -2,28 +2,39 @@ import api from "../lib/api";
 import { API_ENDPOINTS } from "../lib/constants";
 import { mockAuthService } from "./mockAuthService";
 
-const USE_AUTH_MOCK = import.meta.env.VITE_USE_AUTH_MOCK !== "false";
+const USE_AUTH_MOCK = import.meta.env.VITE_USE_AUTH_MOCK === "true";
 
 const apiAuthService = {
-  login: async (email, password, role) => {
+  login: async (username, password, role) => {
     const response = await api.post(API_ENDPOINTS.LOGIN, {
-      email,
+      username,
       password,
-      role,
     });
-    return response.data;
+
+    return {
+      ...response.data,
+      user: {
+        role: role || "student",
+      },
+    };
   },
 
-  // Signup
+  // Signup then auto login to keep existing frontend UX
   signup: async (data) => {
-    const response = await api.post(API_ENDPOINTS.SIGNUP, {
+    const [firstName = "User", ...rest] = (data.displayName || "")
+      .trim()
+      .split(/\s+/);
+    const lastName = rest.join(" ") || firstName;
+
+    await api.post(API_ENDPOINTS.SIGNUP, {
       username: data.username,
       email: data.email,
-      displayName: data.displayName,
       password: data.password,
-      role: data.role,
+      firstName,
+      lastName,
     });
-    return response.data;
+
+    return apiAuthService.login(data.username, data.password, data.role);
   },
 
   // Logout

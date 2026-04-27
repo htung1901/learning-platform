@@ -25,10 +25,10 @@ export const useAuthStore = create((set) => ({
     set({ refreshToken });
   },
 
-  login: async (email, password, role) => {
+  login: async (username, password, role) => {
     set({ isLoading: true });
     try {
-      const response = await authService.login(email, password, role);
+      const response = await authService.login(username, password, role);
       const { accessToken, user } = response;
       const normalizedUser = {
         ...(user || {}),

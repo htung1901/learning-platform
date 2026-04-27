@@ -2,10 +2,10 @@ import { z } from "zod";
 import { FORM_MESSAGES } from "./constants";
 
 export const loginSchema = z.object({
-  email: z
+  username: z
     .string()
-    .email(FORM_MESSAGES.EMAIL_INVALID)
-    .min(1, FORM_MESSAGES.EMAIL_REQUIRED),
+    .min(1, FORM_MESSAGES.USERNAME_REQUIRED)
+    .min(3, "Tên người dùng phải có ít nhất 3 ký tự"),
   password: z
     .string()
     .min(6, FORM_MESSAGES.PASSWORD_MIN)

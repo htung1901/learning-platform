@@ -53,21 +53,21 @@ export default function LoginForm({ onSubmit, isLoading }) {
         )}
       </div>
 
-      {/* Email */}
+      {/* Username */}
       <div>
         <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">
-          Email *
+          Tên người dùng *
         </label>
         <input
-          type="email"
-          placeholder="your@email.com"
+          type="text"
+          placeholder="username"
           disabled={isLoading}
-          {...register("email")}
+          {...register("username")}
           className="w-full px-4 py-3 border-2 border-slate-200 dark:border-slate-600 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:bg-slate-700 dark:text-white transition disabled:opacity-50 disabled:cursor-not-allowed bg-slate-50 dark:bg-slate-700"
         />
-        {errors.email && (
+        {errors.username && (
           <p className="mt-2 text-sm text-red-600 font-medium">
-            {errors.email.message}
+            {errors.username.message}
           </p>
         )}
       </div>

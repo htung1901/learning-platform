@@ -60,21 +60,21 @@ function saveUsers(users) {
 }
 
 export const mockAuthService = {
-  login: async (email, password, role) => {
+  login: async (username, password, role) => {
     await wait(250);
 
     const users = getStoredUsers();
-    const normalizedEmail = (email || "").trim().toLowerCase();
+    const normalizedUsername = (username || "").trim().toLowerCase();
 
     const foundUser = users.find(
       (user) =>
-        user.email.toLowerCase() === normalizedEmail &&
+        user.username.toLowerCase() === normalizedUsername &&
         user.password === password &&
         (!role || user.role === role),
     );
 
     if (!foundUser) {
-      throw createMockError("Sai email, mat khau hoac role.", 401);
+      throw createMockError("Sai username, mat khau hoac role.", 401);
     }
 
     return {

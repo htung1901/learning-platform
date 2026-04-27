@@ -18,7 +18,7 @@ export default function LoginPage() {
   }, [isAuthenticated, navigate, user?.role]);
 
   const handleSubmit = async (data) => {
-    const success = await login(data.email, data.password, data.role);
+    const success = await login(data.username, data.password, data.role);
     if (success) {
       const nextRoute =
         data.role === "student" ? ROUTES.STUDENT_DASHBOARD : ROUTES.DASHBOARD;
@@ -81,9 +81,9 @@ export default function LoginPage() {
 
         {/* Footer Note */}
         <p className="text-center text-xs text-slate-500 dark:text-slate-400 mt-4">
-          Demo Student: student@demo.com | 123456 | role: Student
+          Demo Student: student.demo | 123456 | role: Student
           <br />
-          Demo Instructor: instructor@demo.com | 123456 | role: Instructor
+          Demo Instructor: instructor.demo | 123456 | role: Instructor
         </p>
       </div>
     </div>
