@@ -1,0 +1,26 @@
+ - jsonwebtoken
+ - bcrypt: Ma hoa mat khau
+const hashedPassword = await bcrypt.hash(password, 10):
+Trộn salt với password và thực hiện 2^10 lần tính toán để ra password mới
+ - cookie-parser: Doc cookie
+
+ - JWT chia 3 phần:
+ + Header : Chứa thông tin mã hóa
+ + Payload: Chứa thông tin dữ liệu nhập vào
+ + Signature: Chứ ký tạo ra từ SECRET chỉ server biết
+ => 3 phần mã hóa thành 1 chuỗi duy nhất => Cần SECRET để xác minh Token hợp lệ
+
+* FRONTEND
+ - Thư viện frontend:
+ npm i react-router axios lucide-react tailwindcss @tailwindcss/vite tailwindcss-animate zustand zod react-hook-form @hookform/resolvers sonner
+ + react-router
+ + axios
+ + lucide-react
+ + tailwindcss
+ + tailwindcss-animate
+ + zustand
+ + zod
+ + react-hook-form
+ + sonner
+
+ - có mock data để login, tắt khi kết nối backend
