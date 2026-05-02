@@ -11,10 +11,12 @@ const apiAuthService = {
       password,
     });
 
+    // Backend returns { message, accessToken, user }
     return {
-      ...response.data,
+      accessToken: response.data.accessToken,
       user: {
-        role: role || "student",
+        ...response.data.user, // Spread backend user data (displayName, email, etc.)
+        role: response.data.user?.role || role || "student",
       },
     };
   },
@@ -34,6 +36,7 @@ const apiAuthService = {
       lastName,
     });
 
+    // Auto-login after signup
     return apiAuthService.login(data.username, data.password, data.role);
   },
 

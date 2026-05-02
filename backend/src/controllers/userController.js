@@ -97,3 +97,82 @@ export const getPublicProfile = async (req, res) => {
     return res.status(500).json({ message: "Lỗi hệ thống" });
   }
 };
+
+// Change email (requires current password)
+export const changeEmail = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { newEmail, password } = req.body;
+
+    if (!newEmail || !password) {
+      return res.status(400).json({ message: "Cần newEmail và password" });
+    }
+
+    const user = await User.findById(userId).select("+hashedPassword");
+    if (!user)
+      return res.status(404).json({ message: "Người dùng không tồn tại" });
+
+    const match = await bcrypt.compare(password, user.hashedPassword);
+    if (!match) return res.status(401).json({ message: "Mật khẩu không đúng" });
+
+    const emailNorm = newEmail.toLowerCase().trim();
+    const exists = await User.findOne({ email: emailNorm });
+    if (exists && exists._id.toString() !== userId.toString()) {
+      return res.status(409).json({ message: "Email đã được sử dụng" });
+    }
+
+    user.email = emailNorm;
+    await user.save();
+
+    const safe = await User.findById(userId).select("-hashedPassword");
+    return res.status(200).json({ user: safe });
+  } catch (error) {
+    console.error("Lỗi khi đổi email", error);
+    return res.status(500).json({ message: "Lỗi hệ thống" });
+  }
+};
+
+// Change username (requires current password)
+export const changeUsername = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { newUsername, password } = req.body;
+
+    if (!newUsername || !password) {
+      return res.status(400).json({ message: "Cần newUsername và password" });
+    }
+
+    const user = await User.findById(userId).select("+hashedPassword");
+    if (!user)
+      return res.status(404).json({ message: "Người dùng không tồn tại" });
+
+    const match = await bcrypt.compare(password, user.hashedPassword);
+    if (!match) return res.status(401).json({ message: "Mật khẩu không đúng" });
+
+    const uname = newUsername.trim();
+    // basic username validation
+    if (!/^[a-zA-Z0-9_.-]{3,30}$/.test(uname)) {
+      return res.status(400).json({
+        message:
+          "Username không hợp lệ (3-30 ký tự, chữ hoa/thường, số, _ . -)",
+      });
+    }
+
+    // Check uniqueness (case-insensitive)
+    const exists = await User.findOne({
+      username: { $regex: `^${uname}$`, $options: "i" },
+    });
+    if (exists && exists._id.toString() !== userId.toString()) {
+      return res.status(409).json({ message: "Username đã được sử dụng" });
+    }
+
+    user.username = uname;
+    await user.save();
+
+    const safe = await User.findById(userId).select("-hashedPassword");
+    return res.status(200).json({ user: safe });
+  } catch (error) {
+    console.error("Lỗi khi đổi username", error);
+    return res.status(500).json({ message: "Lỗi hệ thống" });
+  }
+};

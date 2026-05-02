@@ -52,3 +52,28 @@ export const changePasswordValidator = (req, res, next) => {
 
   next();
 };
+
+export const changeEmailValidator = (req, res, next) => {
+  const { newEmail, password } = req.body;
+  if (!newEmail || typeof newEmail !== "string") {
+    return res.status(400).json({ message: "newEmail là bắt buộc" });
+  }
+  const emailRe = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+  if (!emailRe.test(newEmail.trim()))
+    return res.status(400).json({ message: "Email không hợp lệ" });
+  if (!password || typeof password !== "string")
+    return res.status(400).json({ message: "password là bắt buộc" });
+  next();
+};
+
+export const changeUsernameValidator = (req, res, next) => {
+  const { newUsername, password } = req.body;
+  if (!newUsername || typeof newUsername !== "string")
+    return res.status(400).json({ message: "newUsername là bắt buộc" });
+  const uname = newUsername.trim();
+  if (!/^[A-Za-z0-9_.-]{3,30}$/.test(uname))
+    return res.status(400).json({ message: "Username không hợp lệ" });
+  if (!password || typeof password !== "string")
+    return res.status(400).json({ message: "password là bắt buộc" });
+  next();
+};

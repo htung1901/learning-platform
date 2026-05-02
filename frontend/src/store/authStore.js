@@ -30,20 +30,16 @@ export const useAuthStore = create((set) => ({
     try {
       const response = await authService.login(username, password, role);
       const { accessToken, user } = response;
-      const normalizedUser = {
-        ...(user || {}),
-        role: user?.role || role || "student",
-      };
 
       set({
-        user: normalizedUser,
+        user,
         token: accessToken,
         isAuthenticated: true,
         isLoading: false,
       });
 
       localStorage.setItem("token", accessToken);
-      localStorage.setItem("userRole", normalizedUser.role);
+      localStorage.setItem("userRole", user?.role || "student");
       toast.success("Đăng nhập thành công!");
       return true;
     } catch (error) {
@@ -59,20 +55,16 @@ export const useAuthStore = create((set) => ({
     try {
       const response = await authService.signup(data);
       const { accessToken, user } = response;
-      const normalizedUser = {
-        ...(user || {}),
-        role: user?.role || data.role || "student",
-      };
 
       set({
-        user: normalizedUser,
+        user,
         token: accessToken,
         isAuthenticated: true,
         isLoading: false,
       });
 
       localStorage.setItem("token", accessToken);
-      localStorage.setItem("userRole", normalizedUser.role);
+      localStorage.setItem("userRole", user?.role || "student");
       toast.success("Đăng ký thành công!");
       return true;
     } catch (error) {
@@ -92,6 +84,7 @@ export const useAuthStore = create((set) => ({
       localStorage.removeItem("token");
       localStorage.removeItem("refreshToken");
       localStorage.removeItem("userRole");
+      localStorage.removeItem("userProfile");
       set({
         user: null,
         token: null,

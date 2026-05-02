@@ -62,3 +62,43 @@ export const emailSchema = z
   .string()
   .email(FORM_MESSAGES.EMAIL_INVALID)
   .min(1, FORM_MESSAGES.EMAIL_REQUIRED);
+
+export const changePasswordSchema = z
+  .object({
+    oldPassword: z
+      .string()
+      .min(1, "Nhập mật khẩu hiện tại")
+      .min(6, "Mật khẩu phải có ít nhất 6 ký tự"),
+    newPassword: z
+      .string()
+      .min(1, "Nhập mật khẩu mới")
+      .min(6, "Mật khẩu mới phải có ít nhất 6 ký tự"),
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: "Mật khẩu mới không khớp",
+    path: ["confirmPassword"],
+  });
+
+export const changeEmailSchema = z.object({
+  newEmail: z.string().email("Email không hợp lệ").min(1, "Nhập email mới"),
+  password: z
+    .string()
+    .min(1, "Nhập mật khẩu để xác nhận")
+    .min(6, "Mật khẩu phải có ít nhất 6 ký tự"),
+});
+
+export const changeUsernameSchema = z.object({
+  newUsername: z
+    .string()
+    .min(3, "Tên người dùng phải có ít nhất 3 ký tự")
+    .max(30, "Tên người dùng tối đa 30 ký tự")
+    .regex(
+      /^[a-zA-Z0-9_.-]{3,30}$/,
+      "Tên người dùng chỉ bao gồm chữ hoa/thường, số, dấu gạch dưới, dấu chấm, dấu gạch ngang",
+    ),
+  password: z
+    .string()
+    .min(1, "Nhập mật khẩu để xác nhận")
+    .min(6, "Mật khẩu phải có ít nhất 6 ký tự"),
+});

@@ -98,10 +98,16 @@ export const signIn = async (req, res) => {
       maxAge: REFRESH_TOKEN_TTL,
     });
 
-    // trả accsess token về trong res
-    return res
-      .status(200)
-      .json({ message: `User ${user.displayName} đã logged in`, accessToken });
+    // Prepare user response (exclude hashedPassword)
+    const userResponse = user.toObject();
+    delete userResponse.hashedPassword;
+
+    // trả accsess token và user info về trong res
+    return res.status(200).json({
+      message: `User ${user.displayName} đã logged in`,
+      accessToken,
+      user: userResponse,
+    });
   } catch (error) {
     console.error("Lỗi khi gọi signIn", error);
     return res.status(500).json({ message: "Lỗi hệ thống" });
@@ -111,17 +117,17 @@ export const signIn = async (req, res) => {
 export const signOut = async (req, res) => {
   try {
     // lấy refresh token từ cookie
-    const token = req.cookies?.refreshToken
-    if(token) {
+    const token = req.cookies?.refreshToken;
+    if (token) {
       // xóa refresh token trong Session
-      await Session.deleteOne({refreshToken: token})
-      // xóa cookie 
-      res.clearCookie("refreshToken")
+      await Session.deleteOne({ refreshToken: token });
+      // xóa cookie
+      res.clearCookie("refreshToken");
     }
 
-    return res.sendStatus(204)
+    return res.sendStatus(204);
   } catch (error) {
     console.error("Lỗi khi gọi signIn", error);
     return res.status(500).json({ message: "Lỗi hệ thống" });
   }
-}
+};
