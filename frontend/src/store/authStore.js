@@ -2,6 +2,13 @@ import { create } from "zustand";
 import { authService } from "../services/authService";
 import { toast } from "sonner";
 
+export const clearAuthStorage = () => {
+  localStorage.removeItem("token");
+  localStorage.removeItem("refreshToken");
+  localStorage.removeItem("authUser");
+  localStorage.removeItem("userProfile");
+};
+
 export const useAuthStore = create((set) => ({
   // State - restore from localStorage on init
   user: (() => {
@@ -86,10 +93,7 @@ export const useAuthStore = create((set) => ({
     } catch (error) {
       console.error("Logout error:", error);
     } finally {
-      localStorage.removeItem("token");
-      localStorage.removeItem("refreshToken");
-      localStorage.removeItem("authUser");
-      localStorage.removeItem("userProfile");
+      clearAuthStorage();
       set({
         user: null,
         token: null,
@@ -97,6 +101,19 @@ export const useAuthStore = create((set) => ({
         isAuthenticated: false,
       });
       toast.success("Đã đăng xuất");
+    }
+  },
+
+  forceLogout: (showToast = false) => {
+    clearAuthStorage();
+    set({
+      user: null,
+      token: null,
+      refreshToken: null,
+      isAuthenticated: false,
+    });
+    if (showToast) {
+      toast.error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
     }
   },
 
@@ -115,8 +132,7 @@ export const useAuthStore = create((set) => ({
         refreshToken: null,
         isAuthenticated: false,
       });
-      localStorage.removeItem("token");
-      localStorage.removeItem("refreshToken");
+      clearAuthStorage();
       return null;
     }
   },

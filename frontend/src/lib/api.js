@@ -1,5 +1,18 @@
 import axios from "axios";
 import { API_BASE_URL } from "./constants";
+import { useAuthStore } from "../store/authStore";
+
+let isRedirectingToLogin = false;
+
+const handleSessionExpired = () => {
+  useAuthStore.getState().forceLogout(false);
+  sessionStorage.setItem("auth_notice", "session_expired");
+
+  if (!isRedirectingToLogin) {
+    isRedirectingToLogin = true;
+    window.location.replace("/login");
+  }
+};
 
 // Create Axios instance
 const api = axios.create({
@@ -56,12 +69,15 @@ api.interceptors.response.use(
         originalRequest.headers.Authorization = `Bearer ${accessToken}`;
         return api(originalRequest);
       } catch (refreshError) {
-        // Refresh failed, clear auth and redirect to login
-        localStorage.removeItem("token");
-        localStorage.removeItem("refreshToken");
-        window.location.href = "/login";
+        // Refresh failed, force logout and redirect to login
+        handleSessionExpired();
         return Promise.reject(refreshError);
       }
+    }
+
+    // If auth endpoint returns 401 (e.g. refresh cookie expired), force logout too
+    if (error.response?.status === 401 && requestUrl.includes("/api/auth/")) {
+      handleSessionExpired();
     }
 
     return Promise.reject(error);

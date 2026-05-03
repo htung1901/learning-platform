@@ -1,12 +1,20 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuthStore } from "../../store/authStore";
 import LoginForm from "../../components/Auth/LoginForm";
 import { ROUTES } from "../../lib/constants";
+import { toast } from "sonner";
 
 export default function LoginPage() {
   const navigate = useNavigate();
   const { isAuthenticated, isLoading, login, user } = useAuthStore();
+  const [sessionNotice] = useState(() => {
+    const notice = sessionStorage.getItem("auth_notice");
+    if (notice === "session_expired") {
+      return "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.";
+    }
+    return "";
+  });
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -16,6 +24,13 @@ export default function LoginPage() {
       );
     }
   }, [isAuthenticated, navigate, user?.role]);
+
+  useEffect(() => {
+    if (sessionNotice) {
+      toast.error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+      sessionStorage.removeItem("auth_notice");
+    }
+  }, [sessionNotice]);
 
   const handleSubmit = async (data) => {
     const success = await login(data.username, data.password, data.role);
@@ -51,6 +66,12 @@ export default function LoginPage() {
               Chào mừng bạn trở lại
             </p>
           </div>
+
+          {sessionNotice && (
+            <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-700/60 dark:bg-amber-900/20 dark:text-amber-300">
+              {sessionNotice}
+            </div>
+          )}
 
           {/* Form */}
           <LoginForm onSubmit={handleSubmit} isLoading={isLoading} />

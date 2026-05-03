@@ -21,7 +21,12 @@ export default function Header() {
 
   const isStudent = isAuthenticated && user?.role === "student";
   const isInstructor = isAuthenticated && user?.role === "instructor";
-  const logoTarget = isInstructor ? ROUTES.DASHBOARD : ROUTES.HOME;
+  const isAdmin = isAuthenticated && user?.role === "admin";
+  const logoTarget = isAdmin
+    ? "/admin/dashboard"
+    : isInstructor
+      ? ROUTES.DASHBOARD
+      : ROUTES.HOME;
 
   // Close profile dropdown when clicking outside
   useEffect(() => {
@@ -120,7 +125,7 @@ export default function Header() {
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center gap-8">
-            {!isInstructor && (
+            {!isInstructor && !isAdmin && (
               <>
                 {renderDesktopNavItem(ROUTES.HOME, "Home", true)}
                 {renderDesktopNavItem(ROUTES.COURSES, "Khóa học")}
@@ -202,7 +207,7 @@ export default function Header() {
           </div>
 
           <div className="md:hidden flex items-center gap-2">
-            {!isInstructor && (
+            {!isInstructor && !isAdmin && (
               <>
                 <NavLink
                   to={ROUTES.HOME}
