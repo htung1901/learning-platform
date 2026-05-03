@@ -40,4 +40,11 @@ export const userService = {
     const res = await api.get(`/api/users/${encodeURIComponent(username)}`);
     return res.data.user;
   },
+
+  toggleInstructor: async () => {
+    const res = await api.put(
+      API_ENDPOINTS.UPDATE_PROFILE + "/toggle-instructor",
+    );
+    return res.data.user;
+  },
 };

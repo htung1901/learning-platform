@@ -30,12 +30,13 @@ export const signUp = async (req, res) => {
     // mã hóa password
     const hashedPassword = await bcrypt.hash(password, 10); // salt = 10
 
-    // tạo user mới
+    // tạo user mới với role mặc định là student
     await User.create({
       username,
       hashedPassword,
       email,
       displayName: `${firstName} ${lastName}`,
+      role: "student",
     });
 
     // return

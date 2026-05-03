@@ -6,6 +6,7 @@ import {
   getPublicProfile,
   changeEmail,
   changeUsername,
+  toggleInstructor,
 } from "../controllers/userController.js";
 import {
   updateProfileValidator,
@@ -36,5 +37,6 @@ router.post(
   changeUsernameValidator,
   changeUsername,
 );
+router.put("/me/toggle-instructor", protectedRoute, toggleInstructor);
 
 export default router;

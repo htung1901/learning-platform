@@ -1,4 +1,4 @@
-import { Link, NavLink, useNavigate } from "react-router-dom";
+import { Link, NavLink } from "react-router-dom";
 import { useState, useRef, useEffect } from "react";
 import {
   Menu,
@@ -9,11 +9,12 @@ import {
   ShoppingCart,
 } from "lucide-react";
 import { useAuthStore } from "../store/authStore";
+import { userService } from "../services/userService";
+import { toast } from "sonner";
 import { ROUTES } from "../lib/constants";
 
 export default function Header() {
-  const { isAuthenticated, user, logout, switchRole } = useAuthStore();
-  const navigate = useNavigate();
+  const { isAuthenticated, user, logout, setUser } = useAuthStore();
   const [isOpen, setIsOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const profileRef = useRef(null);
@@ -36,14 +37,20 @@ export default function Header() {
     }
   }, [isProfileOpen]);
 
-  const handleSwitchRole = () => {
-    const newRole = user?.role === "student" ? "instructor" : "student";
-    switchRole(newRole);
-    setIsProfileOpen(false);
-    setIsOpen(false);
-    navigate(newRole === "instructor" ? ROUTES.DASHBOARD : ROUTES.COURSES, {
-      replace: true,
-    });
+  const handleSwitchRole = async () => {
+    if (!user) return;
+
+    try {
+      const updated = await userService.toggleInstructor();
+      setUser(updated);
+      localStorage.setItem("authUser", JSON.stringify(updated));
+      const newRole = updated.role === "instructor" ? "giảng viên" : "học viên";
+      toast.success(`Vai trò đã đổi thành ${newRole}`);
+      setIsProfileOpen(false);
+      setIsOpen(false);
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Không thể đổi vai trò");
+    }
   };
 
   const handleLogout = async () => {

@@ -28,10 +28,18 @@ const courseSchema = new mongoose.Schema(
     price: { type: Number, default: 0 },
     status: {
       type: String,
-      enum: ["draft", "published", "archived"],
+      enum: ["draft", "pending", "published", "rejected", "archived"],
       default: "draft",
       index: true,
     },
+    // Duyệt khóa học
+    approvedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User", // admin user
+    },
+    approvedAt: { type: Date },
+    rejectedReason: { type: String }, // lý do từ chối nếu status = rejected
+    submittedAt: { type: Date }, // khi instructor gửi duyệt
     prerequisites: { type: [String], default: [] },
     tags: { type: [String], default: [] },
     totalDuration: { type: Number, default: 0 }, // in seconds
@@ -44,6 +52,9 @@ const courseSchema = new mongoose.Schema(
     timestamps: true,
   },
 );
+
+// Index để tìm khóa học chờ duyệt
+courseSchema.index({ status: 1, submittedAt: 1 });
 
 const Course = mongoose.model("Course", courseSchema);
 export default Course;

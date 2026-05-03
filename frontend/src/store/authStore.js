@@ -3,10 +3,15 @@ import { authService } from "../services/authService";
 import { toast } from "sonner";
 
 export const useAuthStore = create((set) => ({
-  // State
-  user: localStorage.getItem("userRole")
-    ? { role: localStorage.getItem("userRole") }
-    : null,
+  // State - restore from localStorage on init
+  user: (() => {
+    try {
+      const cached = localStorage.getItem("authUser");
+      return cached ? JSON.parse(cached) : null;
+    } catch {
+      return null;
+    }
+  })(),
   token: localStorage.getItem("token") || null,
   refreshToken: localStorage.getItem("refreshToken") || null,
   isLoading: false,
@@ -39,7 +44,7 @@ export const useAuthStore = create((set) => ({
       });
 
       localStorage.setItem("token", accessToken);
-      localStorage.setItem("userRole", user?.role || "student");
+      localStorage.setItem("authUser", JSON.stringify(user));
       toast.success("Đăng nhập thành công!");
       return true;
     } catch (error) {
@@ -64,7 +69,7 @@ export const useAuthStore = create((set) => ({
       });
 
       localStorage.setItem("token", accessToken);
-      localStorage.setItem("userRole", user?.role || "student");
+      localStorage.setItem("authUser", JSON.stringify(user));
       toast.success("Đăng ký thành công!");
       return true;
     } catch (error) {
@@ -83,7 +88,7 @@ export const useAuthStore = create((set) => ({
     } finally {
       localStorage.removeItem("token");
       localStorage.removeItem("refreshToken");
-      localStorage.removeItem("userRole");
+      localStorage.removeItem("authUser");
       localStorage.removeItem("userProfile");
       set({
         user: null,
@@ -119,12 +124,19 @@ export const useAuthStore = create((set) => ({
   // Initialize auth state on app load
   initializeAuth: async () => {
     const token = localStorage.getItem("token");
-    const savedRole = localStorage.getItem("userRole");
+    const savedUser = (() => {
+      try {
+        const cached = localStorage.getItem("authUser");
+        return cached ? JSON.parse(cached) : null;
+      } catch {
+        return null;
+      }
+    })();
     if (token) {
       set({
         token,
         isAuthenticated: true,
-        user: savedRole ? { role: savedRole } : null,
+        user: savedUser,
       });
       // Optionally fetch user profile here
     }
@@ -133,7 +145,7 @@ export const useAuthStore = create((set) => ({
   switchRole: (newRole) => {
     set((state) => {
       const updatedUser = { ...state.user, role: newRole };
-      localStorage.setItem("userRole", newRole);
+      localStorage.setItem("authUser", JSON.stringify(updatedUser));
       toast.success(
         `Đã chuyển sang vai trò: ${newRole === "instructor" ? "Giảng viên" : "Học viên"}`,
       );

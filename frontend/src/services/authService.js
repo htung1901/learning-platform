@@ -34,6 +34,7 @@ const apiAuthService = {
       password: data.password,
       firstName,
       lastName,
+      role: data.role,
     });
 
     // Auto-login after signup

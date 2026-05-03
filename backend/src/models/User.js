@@ -1,46 +1,55 @@
-import mongoose from 'mongoose'
+import mongoose from "mongoose";
 
-const userSchema = new mongoose.Schema({
-  username: {
-    type: String,
-    required: true,
-    unique: true,
-    trim: true,
-    lowercase: true
+const userSchema = new mongoose.Schema(
+  {
+    username: {
+      type: String,
+      required: true,
+      unique: true,
+      trim: true,
+      lowercase: true,
+    },
+    hashedPassword: {
+      type: String,
+      required: true,
+    },
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
+      trim: true,
+    },
+    displayName: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    role: {
+      type: String,
+      enum: ["student", "instructor", "admin"],
+      default: "student",
+      index: true,
+    },
+    avatarUrl: {
+      type: String, // link CDN hiển thị hình
+    },
+    avatarId: {
+      type: String, // Cloudinary public_id để xóa hình
+    },
+    bio: {
+      type: String,
+      maxlength: 500,
+    },
+    phone: {
+      type: String,
+      sparse: true, // chp phép trống nhưng không được trùng
+    },
   },
-  hashedPassword: {
-    type: String,
-    required: true
+  {
+    timestamps: true, // createdAt & updatedAt
   },
-  email: {
-    type: String,
-    required: true,
-    unique: true,
-    lowercase: true,
-    trim: true
-  },
-  displayName: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  avatarUrl: {
-    type: String // link CDN hiển thị hình
-  },
-  avatarId: {
-    type: String // Cloudinary public_id để xóa hình
-  },
-  bio: {
-    type: String,
-    maxlength: 500
-  },
-  phone: {
-    type: String,
-    sparse: true // chp phép trống nhưng không được trùng
-  }
-}, {
-  timestamps: true // createdAt & updatedAt
-})
+);
 
-const User = mongoose.model("User", userSchema)
-export default User
+const User = mongoose.model("User", userSchema);
+export default User;

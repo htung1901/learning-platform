@@ -6,10 +6,12 @@ import ChangePasswordForm from "../../components/Auth/ChangePasswordForm";
 import ChangeEmailForm from "../../components/Auth/ChangeEmailForm";
 import ChangeUsernameForm from "../../components/Auth/ChangeUsernameForm";
 import ProtectedRoute from "../../components/ProtectedRoute";
-import { Mail, User } from "lucide-react";
+import { Mail, User, BookOpen } from "lucide-react";
+import { userService } from "../../services/userService";
+import { toast } from "sonner";
 
 export default function ProfilePage() {
-  const { isAuthenticated, user } = useAuthStore();
+  const { isAuthenticated, user, setUser } = useAuthStore();
   const {
     profile,
     isLoading,
@@ -55,6 +57,18 @@ export default function ProfilePage() {
       newUsername: data.newUsername,
       password: data.password,
     });
+  };
+
+  const handleToggleInstructor = async () => {
+    try {
+      const updatedUser = await userService.toggleInstructor();
+      setUser(updatedUser);
+      localStorage.setItem("authUser", JSON.stringify(updatedUser));
+      const status = updatedUser.role === "instructor" ? "bật" : "tắt";
+      toast.success(`Chế độ giảng viên: ${status}`);
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Lỗi hệ thống");
+    }
   };
 
   if (!isAuthenticated) {
@@ -167,6 +181,28 @@ export default function ProfilePage() {
                   <span className="text-slate-900 dark:text-white font-semibold">
                     {displayUser?.phone || "Chưa thiết lập"}
                   </span>
+                </div>
+
+                <div className="flex justify-between items-center py-4 px-4 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-lg border border-blue-200 dark:border-blue-700/50">
+                  <div className="flex items-center gap-3">
+                    <BookOpen className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                    <span className="text-slate-600 dark:text-slate-400 font-medium">
+                      Chế độ giảng viên:
+                    </span>
+                  </div>
+                  <button
+                    onClick={handleToggleInstructor}
+                    disabled={isLoading}
+                    className={`px-4 py-2 rounded-lg font-semibold transition-all duration-200 ${
+                      displayUser?.role === "instructor"
+                        ? "bg-purple-600 text-white hover:bg-purple-700 dark:bg-purple-500 dark:hover:bg-purple-600"
+                        : "bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+                    } disabled:opacity-50`}
+                  >
+                    {displayUser?.role === "instructor"
+                      ? "Chuyển về học viên"
+                      : "Trở thành giảng viên"}
+                  </button>
                 </div>
               </div>
             </div>

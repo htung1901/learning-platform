@@ -98,6 +98,48 @@ export const getPublicProfile = async (req, res) => {
   }
 };
 
+// Toggle instructor mode for current user (toggle between student and instructor)
+export const toggleInstructor = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({ message: "Người dùng không tồn tại" });
+    }
+
+    // Admin cannot toggle role via this endpoint
+    if (user.role === "admin") {
+      return res
+        .status(400)
+        .json({ message: "Admin không thể đổi role qua endpoint này" });
+    }
+
+    // Toggle between student and instructor
+    if (user.role === "student") {
+      user.role = "instructor";
+    } else if (user.role === "instructor") {
+      user.role = "student";
+    } else {
+      return res.status(400).json({ message: "Không thể thay đổi role" });
+    }
+
+    await user.save();
+
+    // Ensure legacy field is removed if present
+    await User.updateOne({ _id: userId }, { $unset: { isInstructor: "" } });
+
+    const safe = await User.findById(userId).select("-hashedPassword");
+    return res.status(200).json({
+      message: `Role cập nhật: ${safe.role}`,
+      user: safe,
+    });
+  } catch (error) {
+    console.error("Lỗi khi toggle instructor mode", error);
+    return res.status(500).json({ message: "Lỗi hệ thống" });
+  }
+};
+
 // Change email (requires current password)
 export const changeEmail = async (req, res) => {
   try {

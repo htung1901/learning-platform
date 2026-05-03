@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useAuthStore } from "./store/authStore";
 import Layout from "./components/Layout";
 import ProtectedRoute from "./components/ProtectedRoute";
+import AdminProtectedRoute from "./components/AdminProtectedRoute";
 import LoginPage from "./pages/Auth/LoginPage";
 import SignupPage from "./pages/Auth/SignupPage";
 import ProfilePage from "./pages/Auth/ProfilePage";
@@ -22,6 +23,10 @@ import InstructorCommunicationPage from "./pages/Instructor/InstructorCommunicat
 import InstructorPerformancePage from "./pages/Instructor/InstructorPerformancePage";
 import InstructorToolsPage from "./pages/Instructor/InstructorToolsPage";
 import StudentDashboardPage from "./pages/Student/StudentDashboardPage";
+import AdminAuthPage from "./pages/Admin/AdminAuthPage";
+import AdminDashboard from "./pages/Admin/AdminDashboard";
+import AdminApproveCourses from "./pages/Admin/AdminApproveCourses";
+import AdminManageUsers from "./pages/Admin/AdminManageUsers";
 import { ROUTES } from "./lib/constants";
 import { Toaster } from "sonner";
 
@@ -104,6 +109,33 @@ function App() {
               />
               <Route path="tools" element={<InstructorToolsPage />} />
             </Route>
+
+            {/* Admin Routes */}
+            <Route path="/admin" element={<AdminAuthPage />} />
+            <Route
+              path="/admin/dashboard"
+              element={
+                <AdminProtectedRoute>
+                  <AdminDashboard />
+                </AdminProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/courses/pending"
+              element={
+                <AdminProtectedRoute>
+                  <AdminApproveCourses />
+                </AdminProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/users"
+              element={
+                <AdminProtectedRoute>
+                  <AdminManageUsers />
+                </AdminProtectedRoute>
+              }
+            />
 
             {/* Catch-all */}
             <Route path="*" element={<Navigate to="/" replace />} />

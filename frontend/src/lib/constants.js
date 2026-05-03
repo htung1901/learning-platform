@@ -12,6 +12,9 @@ export const API_ENDPOINTS = {
   // Users
   GET_PROFILE: "/api/users/me",
   UPDATE_PROFILE: "/api/users/me",
+
+  // Instructor
+  INSTRUCTOR_COURSES: "/api/instructor/courses",
 };
 
 // Frontend routes

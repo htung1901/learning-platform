@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
   CheckCircle2,
@@ -19,6 +20,8 @@ import {
   Video,
   Wallet,
 } from "lucide-react";
+import { toast } from "sonner";
+import { instructorService } from "../../services/instructorService";
 
 const fieldClassName =
   "w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-cyan-400 focus:ring-4 focus:ring-cyan-200/60 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:focus:ring-cyan-500/20";
@@ -52,9 +55,16 @@ const APPROVED_COURSES = [
 ];
 
 export default function InstructorCreateCoursePage() {
+  const navigate = useNavigate();
   const [step, setStep] = useState("details");
   const [courseTitle, setCourseTitle] = useState("");
   const [courseDescription, setCourseDescription] = useState("");
+  const [courseCategory, setCourseCategory] = useState("Lập trình");
+  const [courseLevel, setCourseLevel] = useState("beginner");
+  const [coursePrice, setCoursePrice] = useState(0);
+  const [thumbnailUrl, setThumbnailUrl] = useState("");
+  const [introVideoUrl, setIntroVideoUrl] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
   const [lessons, setLessons] = useState([
     {
       id: 1,
@@ -157,6 +167,41 @@ export default function InstructorCreateCoursePage() {
 
     return `${seconds}s`;
   };
+
+  const handleCreateCourse = async (status = "draft") => {
+    if (!courseTitle.trim()) {
+      toast.error("Vui lòng nhập tên khóa học");
+      return;
+    }
+
+    const payload = {
+      title: courseTitle.trim(),
+      description: courseDescription,
+      level: courseLevel,
+      price: Number(coursePrice) || 0,
+      thumbnailUrl: thumbnailUrl.trim() || undefined,
+      introVideoUrl: introVideoUrl.trim() || undefined,
+      status,
+      prerequisites: selectedPrerequisites.map((item) => item.title),
+      tags: courseCategory ? [courseCategory] : [],
+    };
+
+    try {
+      setIsSaving(true);
+      await instructorService.createCourse(payload);
+      toast.success(
+        status === "pending"
+          ? "Đã tạo khóa học và gửi duyệt"
+          : "Đã lưu khóa học nháp",
+      );
+      navigate("/dashboard/courses/manage");
+    } catch (error) {
+      toast.error(error?.response?.data?.message || "Không thể tạo khóa học");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <div className="relative overflow-hidden py-2 sm:py-4">
       <div className="pointer-events-none absolute inset-0">
@@ -225,7 +270,13 @@ export default function InstructorCreateCoursePage() {
                     <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
                       Danh mục
                     </span>
-                    <select className={fieldClassName} defaultValue="Lập trình">
+                    <select
+                      className={fieldClassName}
+                      value={courseCategory}
+                      onChange={(event) =>
+                        setCourseCategory(event.target.value)
+                      }
+                    >
                       <option>Lập trình</option>
                       <option>Thiết kế</option>
                       <option>Marketing</option>
@@ -238,11 +289,12 @@ export default function InstructorCreateCoursePage() {
                     </span>
                     <select
                       className={fieldClassName}
-                      defaultValue="Intermediate"
+                      value={courseLevel}
+                      onChange={(event) => setCourseLevel(event.target.value)}
                     >
-                      <option>Beginner</option>
-                      <option>Intermediate</option>
-                      <option>Advanced</option>
+                      <option value="beginner">Beginner</option>
+                      <option value="intermediate">Intermediate</option>
+                      <option value="advanced">Advanced</option>
                     </select>
                   </label>
 
@@ -253,8 +305,12 @@ export default function InstructorCreateCoursePage() {
                     <div className="relative">
                       <Wallet className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                       <input
+                        type="number"
+                        min="0"
                         className="w-full rounded-xl border border-slate-200 bg-white py-3 pr-4 pl-9 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-cyan-400 focus:ring-4 focus:ring-cyan-200/60 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:focus:ring-cyan-500/20"
                         placeholder="799000"
+                        value={coursePrice}
+                        onChange={(event) => setCoursePrice(event.target.value)}
                       />
                     </div>
                   </label>
@@ -265,8 +321,27 @@ export default function InstructorCreateCoursePage() {
                     </span>
                     <div className="flex items-center gap-2 rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-300">
                       <ImagePlus className="h-4 w-4 text-cyan-600 dark:text-cyan-300" />
-                      Kéo thả hoặc chọn ảnh đại diện
+                      <input
+                        className="w-full bg-transparent text-sm outline-none placeholder:text-slate-400"
+                        placeholder="Dán link ảnh thumbnail"
+                        value={thumbnailUrl}
+                        onChange={(event) =>
+                          setThumbnailUrl(event.target.value)
+                        }
+                      />
                     </div>
+                  </label>
+
+                  <label className="space-y-2 md:col-span-2">
+                    <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                      Intro video (optional)
+                    </span>
+                    <input
+                      className={fieldClassName}
+                      placeholder="https://..."
+                      value={introVideoUrl}
+                      onChange={(event) => setIntroVideoUrl(event.target.value)}
+                    />
                   </label>
                 </div>
               </article>
@@ -404,18 +479,30 @@ export default function InstructorCreateCoursePage() {
               <div className="flex flex-wrap items-center gap-3">
                 <button
                   type="button"
+                  disabled={isSaving}
                   className="inline-flex items-center gap-2 rounded-xl bg-linear-to-r from-cyan-500 to-emerald-500 px-5 py-3 text-sm font-bold text-white transition hover:shadow-lg"
+                  onClick={() => handleCreateCourse("draft")}
                 >
                   <Save className="h-4 w-4" />
-                  Lưu nháp
+                  {isSaving ? "Đang lưu..." : "Lưu nháp"}
                 </button>
                 <button
                   type="button"
+                  disabled={isSaving}
                   className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-cyan-400 hover:text-cyan-700 dark:border-slate-700 dark:text-slate-300"
                   onClick={handleGoToLessons}
                 >
                   <PlusCircle className="h-4 w-4" />
-                  Lưu
+                  Tiếp tục nhập bài học
+                </button>
+                <button
+                  type="button"
+                  disabled={isSaving}
+                  className="inline-flex items-center gap-2 rounded-xl border border-emerald-300 bg-emerald-50 px-5 py-3 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100 dark:border-emerald-700/50 dark:bg-emerald-900/20 dark:text-emerald-300"
+                  onClick={() => handleCreateCourse("pending")}
+                >
+                  <CheckCircle2 className="h-4 w-4" />
+                  {isSaving ? "Đang xử lý..." : "Tạo và gửi duyệt"}
                 </button>
               </div>
             </form>
@@ -446,7 +533,9 @@ export default function InstructorCreateCoursePage() {
               <div className="rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-200">
                 <div className="flex items-center gap-2">
                   <Clock3 className="h-4 w-4" />
-                  <span className="font-semibold">Tổng thời lượng: {calculateTotalDuration()}</span>
+                  <span className="font-semibold">
+                    Tổng thời lượng: {calculateTotalDuration()}
+                  </span>
                 </div>
               </div>
               <div className="space-y-4">
@@ -660,7 +749,3 @@ export default function InstructorCreateCoursePage() {
     </div>
   );
 }
-
-
-
-

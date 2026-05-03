@@ -5,6 +5,8 @@ import authRoute from "./routes/authRoute.js";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import userRoute from "./routes/userRoute.js";
+import adminRoute from "./routes/adminRoute.js";
+import instructorRoute from "./routes/instructorRoute.js";
 import { protectedRoute } from "./middlewares/authMiddleware.js";
 
 dotenv.config();
@@ -24,6 +26,12 @@ app.use(
 
 // public routes
 app.use("/api/auth", authRoute);
+
+// admin routes (có middleware riêng)
+app.use("/api/admin", adminRoute);
+
+// instructor routes
+app.use("/api/instructor", instructorRoute);
 
 // private routes
 app.use(protectedRoute);
