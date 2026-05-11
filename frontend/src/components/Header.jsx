@@ -17,6 +17,7 @@ export default function Header() {
   const { isAuthenticated, user, logout, setUser } = useAuthStore();
   const [isOpen, setIsOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isSwitchingRole, setIsSwitchingRole] = useState(false);
   const profileRef = useRef(null);
 
   const isStudent = isAuthenticated && user?.role === "student";
@@ -43,9 +44,10 @@ export default function Header() {
   }, [isProfileOpen]);
 
   const handleSwitchRole = async () => {
-    if (!user) return;
+    if (!user || isSwitchingRole) return;
 
     try {
+      setIsSwitchingRole(true);
       const updated = await userService.toggleInstructor();
       setUser(updated);
       localStorage.setItem("authUser", JSON.stringify(updated));
@@ -54,7 +56,12 @@ export default function Header() {
       setIsProfileOpen(false);
       setIsOpen(false);
     } catch (err) {
-      toast.error(err.response?.data?.message || "Không thể đổi vai trò");
+      // If user is no longer authenticated, interceptor handled logout - don't show error
+      if (isAuthenticated) {
+        toast.error(err.response?.data?.message || "Không thể đổi vai trò");
+      }
+    } finally {
+      setIsSwitchingRole(false);
     }
   };
 
@@ -165,9 +172,14 @@ export default function Header() {
                     <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700 z-50">
                       <button
                         onClick={handleSwitchRole}
-                        className="w-full text-left px-4 py-3 text-slate-700 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-slate-700 transition border-b border-slate-200 dark:border-slate-700"
+                        disabled={isSwitchingRole}
+                        className="w-full text-left px-4 py-3 text-slate-700 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-slate-700 transition border-b border-slate-200 dark:border-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        {user?.role === "student" ? "Giảng viên" : "Học viên"}
+                        {isSwitchingRole
+                          ? "\u0110ang x\u1eed l\u00fd..."
+                          : user?.role === "student"
+                            ? "Gi\u1ea3ng vi\u00ean"
+                            : "H\u1ecdc vi\u00ean"}
                       </button>
 
                       <Link
@@ -285,9 +297,14 @@ export default function Header() {
                   <>
                     <button
                       onClick={handleSwitchRole}
-                      className="w-full text-left px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:text-blue-600 rounded transition"
+                      disabled={isSwitchingRole}
+                      className="w-full text-left px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:text-blue-600 rounded transition disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      {user?.role === "student" ? "Giảng viên" : "Học viên"}
+                      {isSwitchingRole
+                        ? "Đang xử lý..."
+                        : user?.role === "student"
+                          ? "Giảng viên"
+                          : "Học viên"}
                     </button>
 
                     <Link

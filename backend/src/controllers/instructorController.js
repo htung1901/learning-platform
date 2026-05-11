@@ -31,6 +31,26 @@ const getCourseOwnershipQuery = (courseId, userId, role) => {
   return { _id: courseId, instructorId: userId };
 };
 
+const recalculateCourseLessonStats = (course) => {
+  const lessons = course.lessons || [];
+
+  course.lessons = lessons
+    .map((lesson, index) => ({
+      ...(lesson.toObject ? lesson.toObject() : lesson),
+      order: lesson.order || index + 1,
+    }))
+    .sort(
+      (firstLesson, secondLesson) =>
+        (firstLesson.order || 0) - (secondLesson.order || 0),
+    );
+
+  course.totalLessons = course.lessons.length;
+  course.totalDuration = course.lessons.reduce(
+    (total, lesson) => total + (Number(lesson.duration) || 0),
+    0,
+  );
+};
+
 export const createCourse = async (req, res) => {
   try {
     const instructorId = req.user._id;
@@ -107,6 +127,39 @@ export const getMyCourses = async (req, res) => {
   }
 };
 
+export const getMyCourseDetail = async (req, res) => {
+  try {
+    const { courseId } = req.params;
+    const user = req.user;
+    const ownershipQuery = getCourseOwnershipQuery(
+      courseId,
+      user._id,
+      user.role,
+    );
+
+    const course = await Course.findOne(ownershipQuery);
+    if (!course) {
+      return res.status(404).json({ message: "Không tìm thấy khóa học" });
+    }
+
+    const sortedLessons = [...(course.lessons || [])].sort(
+      (firstLesson, secondLesson) =>
+        (firstLesson.order || 0) - (secondLesson.order || 0),
+    );
+
+    return res.status(200).json({
+      message: "Lấy chi tiết khóa học thành công",
+      course: {
+        ...course.toObject(),
+        lessons: sortedLessons,
+      },
+    });
+  } catch (error) {
+    console.error("Lỗi khi lấy chi tiết khóa học", error);
+    return res.status(500).json({ message: "Lỗi hệ thống" });
+  }
+};
+
 export const updateMyCourse = async (req, res) => {
   try {
     const { courseId } = req.params;
@@ -128,8 +181,9 @@ export const updateMyCourse = async (req, res) => {
         .json({ message: "Khóa học đã xuất bản không thể sửa trực tiếp" });
     }
 
+    const originalTitle = course.title;
+
     const fields = [
-      "title",
       "description",
       "categoryId",
       "thumbnailUrl",
@@ -146,9 +200,11 @@ export const updateMyCourse = async (req, res) => {
       }
     });
 
-    if (req.body.title && req.body.title.trim() !== course.title) {
+    if (req.body.title && req.body.title.trim() !== originalTitle) {
       const slug = await buildUniqueSlug(req.body.title);
       course.slug = slug;
+      course.title = req.body.title.trim();
+    } else if (req.body.title !== undefined) {
       course.title = req.body.title.trim();
     }
 
@@ -202,6 +258,164 @@ export const submitCourseForReview = async (req, res) => {
     });
   } catch (error) {
     console.error("Lỗi khi gửi duyệt khóa học", error);
+    return res.status(500).json({ message: "Lỗi hệ thống" });
+  }
+};
+
+export const createLesson = async (req, res) => {
+  try {
+    const { courseId } = req.params;
+    const user = req.user;
+    const ownershipQuery = getCourseOwnershipQuery(
+      courseId,
+      user._id,
+      user.role,
+    );
+
+    const course = await Course.findOne(ownershipQuery);
+    if (!course) {
+      return res.status(404).json({ message: "Không tìm thấy khóa học" });
+    }
+
+    const {
+      title,
+      videoUrl,
+      duration = 0,
+      summary,
+      resources = [],
+      order,
+    } = req.body;
+
+    if (!title || !title.trim()) {
+      return res.status(400).json({ message: "Tiêu đề bài học là bắt buộc" });
+    }
+
+    const lessonOrder = Number(order) || (course.lessons?.length || 0) + 1;
+
+    const lesson = {
+      title: title.trim(),
+      videoUrl: videoUrl || undefined,
+      duration: Number(duration) || 0,
+      summary: summary || undefined,
+      order: lessonOrder,
+      resources: Array.isArray(resources) ? resources : [],
+    };
+
+    course.lessons = course.lessons || [];
+    course.lessons.push(lesson);
+    recalculateCourseLessonStats(course);
+
+    await course.save();
+
+    // Return the last added lesson (with _id)
+    const added = course.lessons[course.lessons.length - 1];
+
+    return res
+      .status(201)
+      .json({ message: "Thêm bài học thành công", lesson: added });
+  } catch (error) {
+    console.error("Lỗi khi thêm bài học", error);
+    return res.status(500).json({ message: "Lỗi hệ thống" });
+  }
+};
+
+export const updateLesson = async (req, res) => {
+  try {
+    const { courseId, lessonId } = req.params;
+    const user = req.user;
+    const ownershipQuery = getCourseOwnershipQuery(
+      courseId,
+      user._id,
+      user.role,
+    );
+
+    const course = await Course.findOne(ownershipQuery);
+    if (!course) {
+      return res.status(404).json({ message: "Không tìm thấy khóa học" });
+    }
+
+    const lesson = course.lessons.id(lessonId);
+    if (!lesson) {
+      return res.status(404).json({ message: "Không tìm thấy bài học" });
+    }
+
+    const {
+      title,
+      videoUrl,
+      duration = 0,
+      summary,
+      resources = [],
+      order,
+    } = req.body;
+
+    if (title !== undefined) {
+      if (!title.trim()) {
+        return res.status(400).json({ message: "Tiêu đề bài học là bắt buộc" });
+      }
+
+      lesson.title = title.trim();
+    }
+
+    if (videoUrl !== undefined) {
+      lesson.videoUrl = videoUrl || undefined;
+    }
+
+    if (duration !== undefined) {
+      lesson.duration = Number(duration) || 0;
+    }
+
+    if (summary !== undefined) {
+      lesson.summary = summary || undefined;
+    }
+
+    if (resources !== undefined) {
+      lesson.resources = Array.isArray(resources) ? resources : [];
+    }
+
+    if (order !== undefined) {
+      lesson.order = Number(order) || lesson.order;
+    }
+
+    recalculateCourseLessonStats(course);
+    await course.save();
+
+    return res.status(200).json({
+      message: "Cập nhật bài học thành công",
+      lesson,
+    });
+  } catch (error) {
+    console.error("Lỗi khi cập nhật bài học", error);
+    return res.status(500).json({ message: "Lỗi hệ thống" });
+  }
+};
+
+export const deleteLesson = async (req, res) => {
+  try {
+    const { courseId, lessonId } = req.params;
+    const user = req.user;
+    const ownershipQuery = getCourseOwnershipQuery(
+      courseId,
+      user._id,
+      user.role,
+    );
+
+    const course = await Course.findOne(ownershipQuery);
+    if (!course) {
+      return res.status(404).json({ message: "Không tìm thấy khóa học" });
+    }
+
+    const lesson = course.lessons.id(lessonId);
+    if (!lesson) {
+      return res.status(404).json({ message: "Không tìm thấy bài học" });
+    }
+
+    lesson.deleteOne();
+    recalculateCourseLessonStats(course);
+    await course.save();
+
+    return res.status(200).json({ message: "Xóa bài học thành công" });
+  } catch (error) {
+    console.error("Lỗi khi xóa bài học", error);
     return res.status(500).json({ message: "Lỗi hệ thống" });
   }
 };

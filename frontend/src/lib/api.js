@@ -4,7 +4,7 @@ import { useAuthStore } from "../store/authStore";
 
 let isRedirectingToLogin = false;
 
-const handleSessionExpired = () => {
+export const triggerSessionExpired = () => {
   useAuthStore.getState().forceLogout(false);
   sessionStorage.setItem("auth_notice", "session_expired");
 
@@ -12,6 +12,18 @@ const handleSessionExpired = () => {
     isRedirectingToLogin = true;
     window.location.replace("/login");
   }
+};
+
+const isAccessTokenInvalidResponse = (error) => {
+  const status = error?.response?.status;
+  const message = (error?.response?.data?.message || "").toLowerCase();
+  const code = error?.response?.data?.code;
+
+  return (
+    status === 401 ||
+    code === "ACCESS_TOKEN_INVALID" ||
+    (status === 403 && message.includes("access token"))
+  );
 };
 
 // Create Axios instance
@@ -46,7 +58,7 @@ api.interceptors.response.use(
 
     // If error is 401 and we haven't already tried refreshing
     if (
-      error.response?.status === 401 &&
+      isAccessTokenInvalidResponse(error) &&
       !originalRequest._retry &&
       !requestUrl.includes("/api/auth/")
     ) {
@@ -70,14 +82,14 @@ api.interceptors.response.use(
         return api(originalRequest);
       } catch (refreshError) {
         // Refresh failed, force logout and redirect to login
-        handleSessionExpired();
+        triggerSessionExpired();
         return Promise.reject(refreshError);
       }
     }
 
     // If auth endpoint returns 401 (e.g. refresh cookie expired), force logout too
     if (error.response?.status === 401 && requestUrl.includes("/api/auth/")) {
-      handleSessionExpired();
+      triggerSessionExpired();
     }
 
     return Promise.reject(error);

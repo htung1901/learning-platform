@@ -11,10 +11,12 @@ import {
   Users,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useAuthStore } from "../../store/authStore";
 import { instructorService } from "../../services/instructorService";
 
 export default function InstructorManageCoursesPage() {
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuthStore();
   const [searchText, setSearchText] = useState("");
   const [courses, setCourses] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -26,16 +28,20 @@ export default function InstructorManageCoursesPage() {
         const data = await instructorService.getMyCourses();
         setCourses(data);
       } catch (error) {
-        toast.error(
-          error?.response?.data?.message || "Không thể tải danh sách khóa học",
-        );
+        // If user is no longer authenticated, interceptor handled logout - don't show error
+        if (isAuthenticated) {
+          toast.error(
+            error?.response?.data?.message ||
+              "Không thể tải danh sách khóa học",
+          );
+        }
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchCourses();
-  }, []);
+  }, [isAuthenticated]);
 
   const filteredCourses = useMemo(() => {
     const keyword = searchText.trim().toLowerCase();

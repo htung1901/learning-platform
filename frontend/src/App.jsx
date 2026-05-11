@@ -27,16 +27,71 @@ import AdminAuthPage from "./pages/Admin/AdminAuthPage";
 import AdminDashboard from "./pages/Admin/AdminDashboard";
 import AdminApproveCourses from "./pages/Admin/AdminApproveCourses";
 import AdminManageUsers from "./pages/Admin/AdminManageUsers";
+import { authService } from "./services/authService";
 import { ROUTES } from "./lib/constants";
+import { triggerSessionExpired } from "./lib/api";
 import { Toaster } from "sonner";
 
+const getTokenExpiryMs = (token) => {
+  try {
+    const payloadPart = token.split(".")[1];
+    if (!payloadPart) return null;
+    const normalized = payloadPart.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = normalized + "=".repeat((4 - (normalized.length % 4)) % 4);
+    const payload = JSON.parse(atob(padded));
+    if (!payload?.exp) return null;
+    return Number(payload.exp) * 1000;
+  } catch {
+    return null;
+  }
+};
+
 function App() {
-  const { initializeAuth } = useAuthStore();
+  const { initializeAuth, setToken } = useAuthStore();
 
   // Initialize auth state on app load
   useEffect(() => {
     initializeAuth();
   }, [initializeAuth]);
+
+  // Keep session alive while idle: refresh expired access token, logout only if refresh fails.
+  useEffect(() => {
+    let isRefreshing = false;
+
+    const checkTokenExpiry = async () => {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+
+      const expiryMs = getTokenExpiryMs(token);
+      if (!expiryMs) return;
+
+      if (Date.now() >= expiryMs && !isRefreshing) {
+        isRefreshing = true;
+        try {
+          const response = await authService.refreshToken();
+          const newAccessToken = response?.accessToken;
+
+          if (!newAccessToken) {
+            triggerSessionExpired();
+            return;
+          }
+
+          setToken(newAccessToken);
+        } catch {
+          triggerSessionExpired();
+        } finally {
+          isRefreshing = false;
+        }
+      }
+    };
+
+    checkTokenExpiry();
+    const intervalId = window.setInterval(checkTokenExpiry, 15000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [setToken]);
 
   return (
     <>

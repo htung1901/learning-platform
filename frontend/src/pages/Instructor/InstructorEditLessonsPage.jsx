@@ -1,13 +1,12 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { COURSE_LIST } from "../../data/courseCatalog";
 import {
   ArrowLeft,
   BookPlus,
-  CheckCircle2,
   Clock3,
   FileText,
   ImagePlus,
+  Loader2,
   PlusCircle,
   PlayCircle,
   Save,
@@ -16,6 +15,9 @@ import {
   Video,
   Wallet,
 } from "lucide-react";
+import { toast } from "sonner";
+import { useAuthStore } from "../../store/authStore";
+import { instructorService } from "../../services/instructorService";
 
 const fieldClassName =
   "w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-cyan-400 focus:ring-4 focus:ring-cyan-200/60 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:focus:ring-cyan-500/20";
@@ -48,56 +50,136 @@ const APPROVED_COURSES = [
   },
 ];
 
+const formatDuration = (durationInSeconds = 0) => {
+  const totalSeconds = Number(durationInSeconds) || 0;
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, "0")}:${String(
+      seconds,
+    ).padStart(2, "0")}`;
+  }
+
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+};
+
+const parseDuration = (value) => {
+  if (!value) return 0;
+
+  if (String(value).includes(":")) {
+    const parts = String(value)
+      .split(":")
+      .map((part) => Number(part));
+
+    if (parts.some((part) => Number.isNaN(part))) return 0;
+
+    if (parts.length === 2) {
+      const [minutes, seconds] = parts;
+      return minutes * 60 + seconds;
+    }
+
+    if (parts.length === 3) {
+      const [hours, minutes, seconds] = parts;
+      return hours * 3600 + minutes * 60 + seconds;
+    }
+  }
+
+  return Number(value) || 0;
+};
+
 export default function InstructorEditLessonsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const course = COURSE_LIST.find((item) => item.id === id) ?? COURSE_LIST[0];
-  const [courseTitle, setCourseTitle] = useState(course.title);
-  const [courseDescription, setCourseDescription] = useState(
-    course.intro || "",
-  );
-  const [courseCategory, setCourseCategory] = useState(course.category);
-  const [courseLevel, setCourseLevel] = useState(course.level);
-  const [coursePrice, setCoursePrice] = useState(course.price);
-  const [hasPrerequisites, setHasPrerequisites] = useState(true);
+  const { isAuthenticated } = useAuthStore();
+
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [course, setCourse] = useState(null);
+  const [courseTitle, setCourseTitle] = useState("");
+  const [courseDescription, setCourseDescription] = useState("");
+  const [courseCategory, setCourseCategory] = useState("Lập trình");
+  const [courseLevel, setCourseLevel] = useState("beginner");
+  const [coursePrice, setCoursePrice] = useState(0);
+  const [thumbnailUrl, setThumbnailUrl] = useState("");
+  const [introVideoUrl, setIntroVideoUrl] = useState("");
+  const [hasPrerequisites, setHasPrerequisites] = useState(false);
   const [searchPrerequisites, setSearchPrerequisites] = useState("");
-  const [selectedPrerequisites, setSelectedPrerequisites] = useState([
-    APPROVED_COURSES[0],
-    APPROVED_COURSES[2],
-  ]);
+  const [selectedPrerequisites, setSelectedPrerequisites] = useState([]);
+  const [lessons, setLessons] = useState([]);
+  const [removedLessonIds, setRemovedLessonIds] = useState([]);
 
-  const initialLessons =
-    course?.syllabus?.map((module, index) => ({
-      id: index + 1,
-      title: module.title,
-      videoUrl: "",
-      duration: "12:00",
-      type: "Video",
-      summary: `Module gồm ${module.lessons} bài học`,
-    })) ?? [];
+  const filteredCourses = useMemo(() => {
+    return APPROVED_COURSES.filter(
+      (approvedCourse) =>
+        approvedCourse.title
+          .toLowerCase()
+          .includes(searchPrerequisites.toLowerCase()) &&
+        !selectedPrerequisites.find((item) => item.id === approvedCourse.id),
+    );
+  }, [searchPrerequisites, selectedPrerequisites]);
 
-  const [lessons, setLessons] = useState(
-    initialLessons.length > 0
-      ? initialLessons
-      : [
-          {
-            id: 1,
-            title: "",
-            videoUrl: "",
-            duration: "",
-            type: "Video",
-            summary: "",
-          },
-        ],
-  );
+  useEffect(() => {
+    const fetchCourse = async () => {
+      if (!id) return;
 
-  const filteredCourses = APPROVED_COURSES.filter(
-    (approvedCourse) =>
-      approvedCourse.title
-        .toLowerCase()
-        .includes(searchPrerequisites.toLowerCase()) &&
-      !selectedPrerequisites.find((item) => item.id === approvedCourse.id),
-  );
+      try {
+        setIsLoading(true);
+        const data = await instructorService.getMyCourseDetail(id);
+        setCourse(data);
+        setCourseTitle(data.title || "");
+        setCourseDescription(data.description || "");
+        setCourseCategory(data.tags?.[0] || "Lập trình");
+        setCourseLevel(data.level || "beginner");
+        setCoursePrice(data.price || 0);
+        setThumbnailUrl(data.thumbnailUrl || "");
+        setIntroVideoUrl(data.introVideoUrl || "");
+        setHasPrerequisites((data.prerequisites || []).length > 0);
+        setSelectedPrerequisites(
+          APPROVED_COURSES.filter((courseItem) =>
+            (data.prerequisites || []).includes(courseItem.title),
+          ),
+        );
+        setLessons(
+          (data.lessons || []).length > 0
+            ? data.lessons.map((lesson, index) => ({
+                _id: lesson._id,
+                id: lesson._id || `lesson-${index + 1}`,
+                title: lesson.title || "",
+                videoUrl: lesson.videoUrl || "",
+                duration: formatDuration(lesson.duration || 0),
+                summary: lesson.summary || "",
+                type: "Video",
+                order: lesson.order || index + 1,
+                resources: lesson.resources || [],
+              }))
+            : [
+                {
+                  id: `lesson-${Date.now()}`,
+                  title: "",
+                  videoUrl: "",
+                  duration: "",
+                  summary: "",
+                  type: "Video",
+                  order: 1,
+                  resources: [],
+                },
+              ],
+        );
+      } catch (error) {
+        if (isAuthenticated) {
+          toast.error(
+            error?.response?.data?.message || "Không thể tải chi tiết khóa học",
+          );
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchCourse();
+  }, [id, isAuthenticated]);
 
   const handleAddPrerequisite = (approvedCourse) => {
     setSelectedPrerequisites((prev) => [...prev, approvedCourse]);
@@ -122,42 +204,37 @@ export default function InstructorEditLessonsPage() {
     setLessons((prevLessons) => [
       ...prevLessons,
       {
-        id: Date.now(),
+        id: `lesson-${Date.now()}`,
         title: "",
         videoUrl: "",
         duration: "",
-        type: "Video",
         summary: "",
+        type: "Video",
+        order: prevLessons.length + 1,
+        resources: [],
       },
     ]);
   };
 
   const handleRemoveLesson = (lessonId) => {
     setLessons((prevLessons) => {
+      const removedLesson = prevLessons.find(
+        (lesson) => lesson.id === lessonId,
+      );
+      if (removedLesson?._id) {
+        setRemovedLessonIds((prev) => [...prev, removedLesson._id]);
+      }
+
       if (prevLessons.length === 1) return prevLessons;
       return prevLessons.filter((lesson) => lesson.id !== lessonId);
     });
   };
 
   const calculateTotalDuration = () => {
-    const totalSeconds = lessons.reduce((sum, lesson) => {
-      if (!lesson.duration) return sum;
-
-      const parts = lesson.duration.split(":").map((part) => Number(part));
-      if (parts.some((part) => Number.isNaN(part))) return sum;
-
-      if (parts.length === 2) {
-        const [minutes, seconds] = parts;
-        return sum + minutes * 60 + seconds;
-      }
-
-      if (parts.length === 3) {
-        const [hours, minutes, seconds] = parts;
-        return sum + hours * 3600 + minutes * 60 + seconds;
-      }
-
-      return sum;
-    }, 0);
+    const totalSeconds = lessons.reduce(
+      (sum, lesson) => sum + parseDuration(lesson.duration),
+      0,
+    );
 
     const hours = Math.floor(totalSeconds / 3600);
     const minutes = Math.floor((totalSeconds % 3600) / 60);
@@ -174,6 +251,97 @@ export default function InstructorEditLessonsPage() {
     return `${seconds}s`;
   };
 
+  const buildCoursePayload = () => ({
+    title: courseTitle.trim(),
+    description: courseDescription,
+    level: courseLevel,
+    price: Number(coursePrice) || 0,
+    thumbnailUrl: thumbnailUrl.trim() || undefined,
+    introVideoUrl: introVideoUrl.trim() || undefined,
+    prerequisites: selectedPrerequisites.map((item) => item.title),
+    tags: courseCategory ? [courseCategory] : [],
+  });
+
+  const handleSaveAll = async () => {
+    if (!id) {
+      toast.error("Không tìm được khóa học");
+      return;
+    }
+
+    if (!courseTitle.trim()) {
+      toast.error("Vui lòng nhập tên khóa học");
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+
+      const updatedCourse = await instructorService.updateCourse(
+        id,
+        buildCoursePayload(),
+      );
+      setCourse(updatedCourse);
+
+      for (const lessonId of removedLessonIds) {
+        await instructorService.deleteLesson(id, lessonId);
+      }
+
+      for (const [index, lesson] of lessons.entries()) {
+        const payload = {
+          title: lesson.title,
+          videoUrl: lesson.videoUrl,
+          duration: parseDuration(lesson.duration),
+          summary: lesson.summary,
+          resources: lesson.resources || [],
+          order: index + 1,
+        };
+
+        if (lesson._id) {
+          await instructorService.updateLesson(id, lesson._id, payload);
+        } else {
+          await instructorService.createLesson(id, payload);
+        }
+      }
+
+      toast.success("Đã lưu thay đổi khóa học và bài học");
+      navigate(`/dashboard/courses/manage/${id}`);
+    } catch (error) {
+      if (isAuthenticated) {
+        toast.error(error?.response?.data?.message || "Không thể lưu thay đổi");
+      }
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center rounded-3xl border border-slate-200 bg-white p-10 text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
+        <Loader2 className="mr-3 h-5 w-5 animate-spin" />
+        Đang tải dữ liệu khóa học...
+      </div>
+    );
+  }
+
+  if (!course) {
+    return (
+      <div className="space-y-4 rounded-3xl border border-slate-200 bg-white p-8 text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
+        <h1 className="text-2xl font-black text-slate-900 dark:text-white">
+          Không tìm thấy khóa học
+        </h1>
+        <p>Khóa học có thể đã bị xóa hoặc bạn không có quyền chỉnh sửa.</p>
+        <button
+          type="button"
+          onClick={() => navigate(`/dashboard/courses/manage/${id}`)}
+          className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-cyan-400 hover:text-cyan-700 dark:border-slate-700 dark:text-slate-300"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Quay lại trang xem
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-5 p-4 sm:p-6">
       <article className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
@@ -184,7 +352,7 @@ export default function InstructorEditLessonsPage() {
           </div>
           <button
             type="button"
-            onClick={() => navigate(`/dashboard/courses/manage/${course.id}`)}
+            onClick={() => navigate(`/dashboard/courses/manage/${id}`)}
             className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-cyan-400 hover:text-cyan-700 dark:border-slate-700 dark:text-slate-300"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -240,9 +408,9 @@ export default function InstructorEditLessonsPage() {
               value={courseLevel}
               onChange={(event) => setCourseLevel(event.target.value)}
             >
-              <option>Beginner</option>
-              <option>Intermediate</option>
-              <option>Advanced</option>
+              <option value="beginner">Beginner</option>
+              <option value="intermediate">Intermediate</option>
+              <option value="advanced">Advanced</option>
             </select>
           </label>
 
@@ -267,8 +435,25 @@ export default function InstructorEditLessonsPage() {
             </span>
             <div className="flex items-center gap-2 rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-300">
               <ImagePlus className="h-4 w-4 text-cyan-600 dark:text-cyan-300" />
-              Kéo thả hoặc chọn ảnh đại diện
+              <input
+                className="w-full bg-transparent text-sm outline-none placeholder:text-slate-400"
+                placeholder="Dán link ảnh thumbnail"
+                value={thumbnailUrl}
+                onChange={(event) => setThumbnailUrl(event.target.value)}
+              />
             </div>
+          </label>
+
+          <label className="space-y-2 md:col-span-2">
+            <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+              Intro video (optional)
+            </span>
+            <input
+              className={fieldClassName}
+              placeholder="https://..."
+              value={introVideoUrl}
+              onChange={(event) => setIntroVideoUrl(event.target.value)}
+            />
           </label>
         </div>
       </article>
@@ -300,8 +485,11 @@ export default function InstructorEditLessonsPage() {
             <textarea
               rows={7}
               className={fieldClassName}
-              value={course.syllabus
-                .map((item, index) => `${index + 1}. ${item.title}`)
+              value={lessons
+                .map(
+                  (lesson, index) =>
+                    `${index + 1}. ${lesson.title || "Chưa đặt tiêu đề"}`,
+                )
                 .join("\n")}
               readOnly
             />
@@ -526,10 +714,12 @@ export default function InstructorEditLessonsPage() {
         </button>
         <button
           type="button"
-          className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-cyan-400 hover:text-cyan-700 dark:border-slate-700 dark:text-slate-300"
+          disabled={isSaving}
+          onClick={handleSaveAll}
+          className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-cyan-400 hover:text-cyan-700 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-slate-300"
         >
           <Save className="h-4 w-4" />
-          Lưu thay đổi khóa học
+          {isSaving ? "Đang lưu..." : "Lưu thay đổi khóa học"}
         </button>
       </div>
     </div>

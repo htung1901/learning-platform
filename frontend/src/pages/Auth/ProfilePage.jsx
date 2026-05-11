@@ -67,7 +67,10 @@ export default function ProfilePage() {
       const status = updatedUser.role === "instructor" ? "bật" : "tắt";
       toast.success(`Chế độ giảng viên: ${status}`);
     } catch (error) {
-      toast.error(error.response?.data?.message || "Lỗi hệ thống");
+      // If user is no longer authenticated, interceptor handled logout - don't show error
+      if (isAuthenticated) {
+        toast.error(error.response?.data?.message || "Lỗi hệ thống");
+      }
     }
   };
 

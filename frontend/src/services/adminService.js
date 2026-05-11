@@ -1,34 +1,15 @@
-import axios from "axios";
-
-const API_URL = "http://localhost:5001/api/admin";
-
-const axiosInstance = axios.create({
-  baseURL: API_URL,
-  withCredentials: true,
-});
-
-// Add auth interceptor
-axiosInstance.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem("token");
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error),
-);
+import api from "../lib/api";
 
 export const adminService = {
   // Lấy thống kê
   getStats: async () => {
-    const response = await axiosInstance.get("/stats");
+    const response = await api.get("/api/admin/stats");
     return response.data;
   },
 
   // Lấy khóa học chờ duyệt
   getPendingCourses: async (page = 1, limit = 10) => {
-    const response = await axiosInstance.get("/courses/pending", {
+    const response = await api.get("/api/admin/courses/pending", {
       params: { page, limit },
     });
     return response.data;
@@ -36,13 +17,13 @@ export const adminService = {
 
   // Duyệt khóa học
   approveCourse: async (courseId) => {
-    const response = await axiosInstance.post(`/courses/${courseId}/approve`);
+    const response = await api.post(`/api/admin/courses/${courseId}/approve`);
     return response.data;
   },
 
   // Từ chối khóa học
   rejectCourse: async (courseId, reason) => {
-    const response = await axiosInstance.post(`/courses/${courseId}/reject`, {
+    const response = await api.post(`/api/admin/courses/${courseId}/reject`, {
       reason,
     });
     return response.data;
@@ -50,7 +31,7 @@ export const adminService = {
 
   // Lấy danh sách user
   getAllUsers: async (page = 1, limit = 10, role = null) => {
-    const response = await axiosInstance.get("/users", {
+    const response = await api.get("/api/admin/users", {
       params: { page, limit, role },
     });
     return response.data;
@@ -58,7 +39,7 @@ export const adminService = {
 
   // Cập nhật role user
   updateUserRole: async (userId, role) => {
-    const response = await axiosInstance.patch(`/users/${userId}/role`, {
+    const response = await api.patch(`/api/admin/users/${userId}/role`, {
       role,
     });
     return response.data;

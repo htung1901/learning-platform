@@ -35,6 +35,8 @@ export default function LoginPage() {
   const handleSubmit = async (data) => {
     const success = await login(data.username, data.password, data.role);
     if (success) {
+      // Clear session expired notice on successful login
+      sessionStorage.removeItem("auth_notice");
       const nextRoute =
         data.role === "student" ? ROUTES.STUDENT_DASHBOARD : ROUTES.DASHBOARD;
       navigate(nextRoute);

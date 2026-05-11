@@ -21,6 +21,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useAuthStore } from "../../store/authStore";
 import { instructorService } from "../../services/instructorService";
 
 const fieldClassName =
@@ -56,6 +57,7 @@ const APPROVED_COURSES = [
 
 export default function InstructorCreateCoursePage() {
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuthStore();
   const [step, setStep] = useState("details");
   const [courseTitle, setCourseTitle] = useState("");
   const [courseDescription, setCourseDescription] = useState("");
@@ -65,6 +67,8 @@ export default function InstructorCreateCoursePage() {
   const [thumbnailUrl, setThumbnailUrl] = useState("");
   const [introVideoUrl, setIntroVideoUrl] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [savedCourseId, setSavedCourseId] = useState(null);
+  const [hasSavedLessons, setHasSavedLessons] = useState(false);
   const [lessons, setLessons] = useState([
     {
       id: 1,
@@ -96,8 +100,49 @@ export default function InstructorCreateCoursePage() {
     );
   };
 
-  const handleGoToLessons = () => {
-    setStep("lessons");
+  const buildCoursePayload = (status = "draft") => ({
+    title: courseTitle.trim(),
+    description: courseDescription,
+    level: courseLevel,
+    price: Number(coursePrice) || 0,
+    thumbnailUrl: thumbnailUrl.trim() || undefined,
+    introVideoUrl: introVideoUrl.trim() || undefined,
+    status,
+    prerequisites: selectedPrerequisites.map((item) => item.title),
+    tags: courseCategory ? [courseCategory] : [],
+  });
+
+  const persistDraftCourse = async () => {
+    if (!courseTitle.trim()) {
+      toast.error("Vui lòng nhập tên khóa học");
+      return null;
+    }
+
+    const payload = buildCoursePayload("draft");
+    const course = savedCourseId
+      ? await instructorService.updateCourse(savedCourseId, payload)
+      : await instructorService.createCourse(payload);
+
+    setSavedCourseId(course?._id || course?.id || savedCourseId);
+    return course;
+  };
+
+  const handleGoToLessons = async () => {
+    try {
+      setIsSaving(true);
+      const course = await persistDraftCourse();
+      if (!course) return;
+
+      setHasSavedLessons(Boolean(course.totalLessons > 0));
+      setStep("lessons");
+      toast.success("Đã lưu nháp khóa học, giờ nhập bài học");
+    } catch (error) {
+      if (isAuthenticated) {
+        toast.error(error?.response?.data?.message || "Không thể lưu khóa học");
+      }
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleBackToDetails = () => {
@@ -168,35 +213,92 @@ export default function InstructorCreateCoursePage() {
     return `${seconds}s`;
   };
 
-  const handleCreateCourse = async (status = "draft") => {
-    if (!courseTitle.trim()) {
-      toast.error("Vui lòng nhập tên khóa học");
+  const handleSubmitForReview = async () => {
+    if (!savedCourseId) {
+      toast.error("Vui lòng lưu danh sách bài học trước khi gửi duyệt");
       return;
     }
 
-    const payload = {
-      title: courseTitle.trim(),
-      description: courseDescription,
-      level: courseLevel,
-      price: Number(coursePrice) || 0,
-      thumbnailUrl: thumbnailUrl.trim() || undefined,
-      introVideoUrl: introVideoUrl.trim() || undefined,
-      status,
-      prerequisites: selectedPrerequisites.map((item) => item.title),
-      tags: courseCategory ? [courseCategory] : [],
-    };
+    if (!hasSavedLessons) {
+      toast.error("Khóa học cần có ít nhất một bài học trước khi gửi duyệt");
+      return;
+    }
 
     try {
       setIsSaving(true);
-      await instructorService.createCourse(payload);
-      toast.success(
-        status === "pending"
-          ? "Đã tạo khóa học và gửi duyệt"
-          : "Đã lưu khóa học nháp",
-      );
+      await instructorService.submitCourseForReview(savedCourseId);
+      toast.success("Đã gửi khóa học lên chờ duyệt");
       navigate("/dashboard/courses/manage");
     } catch (error) {
-      toast.error(error?.response?.data?.message || "Không thể tạo khóa học");
+      // If user is no longer authenticated, interceptor handled logout - don't show error
+      if (isAuthenticated) {
+        toast.error(error?.response?.data?.message || "Không thể gửi duyệt");
+      }
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSaveDraftCourse = async () => {
+    try {
+      setIsSaving(true);
+      const course = await persistDraftCourse();
+      if (!course) return;
+
+      toast.success("Đã lưu khóa học nháp");
+      navigate("/dashboard/courses/manage");
+    } catch (error) {
+      if (isAuthenticated) {
+        toast.error(error?.response?.data?.message || "Không thể lưu khóa học");
+      }
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSaveLessons = async () => {
+    try {
+      setIsSaving(true);
+
+      let courseId = savedCourseId;
+      if (!courseId) {
+        const draftCourse = await persistDraftCourse();
+        courseId = draftCourse?._id || draftCourse?.id;
+      }
+
+      if (!courseId) {
+        toast.error("Không tìm được khóa học để lưu bài học");
+        return;
+      }
+
+      for (const lesson of lessons) {
+        const payload = {
+          title: lesson.title,
+          videoUrl: lesson.videoUrl,
+          duration: (() => {
+            if (!lesson.duration) return 0;
+            if (String(lesson.duration).includes(":")) {
+              const parts = String(lesson.duration).split(":").map(Number);
+              if (parts.length === 2) return parts[0] * 60 + parts[1];
+              if (parts.length === 3)
+                return parts[0] * 3600 + parts[1] * 60 + parts[2];
+            }
+            return Number(lesson.duration) || 0;
+          })(),
+          summary: lesson.summary,
+          resources: lesson.resources || [],
+        };
+
+        await instructorService.createLesson(courseId, payload);
+      }
+
+      setHasSavedLessons(true);
+      setStep("details");
+      toast.success("Lưu bài học thành công. Giờ có thể gửi duyệt khóa học");
+    } catch (error) {
+      if (isAuthenticated) {
+        toast.error(error?.response?.data?.message || "Không thể lưu bài học");
+      }
     } finally {
       setIsSaving(false);
     }
@@ -481,7 +583,7 @@ export default function InstructorCreateCoursePage() {
                   type="button"
                   disabled={isSaving}
                   className="inline-flex items-center gap-2 rounded-xl bg-linear-to-r from-cyan-500 to-emerald-500 px-5 py-3 text-sm font-bold text-white transition hover:shadow-lg"
-                  onClick={() => handleCreateCourse("draft")}
+                  onClick={handleSaveDraftCourse}
                 >
                   <Save className="h-4 w-4" />
                   {isSaving ? "Đang lưu..." : "Lưu nháp"}
@@ -497,12 +599,20 @@ export default function InstructorCreateCoursePage() {
                 </button>
                 <button
                   type="button"
-                  disabled={isSaving}
-                  className="inline-flex items-center gap-2 rounded-xl border border-emerald-300 bg-emerald-50 px-5 py-3 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100 dark:border-emerald-700/50 dark:bg-emerald-900/20 dark:text-emerald-300"
-                  onClick={() => handleCreateCourse("pending")}
+                  disabled={isSaving || !hasSavedLessons}
+                  className={`inline-flex items-center gap-2 rounded-xl border px-5 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                    hasSavedLessons
+                      ? "border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-700/50 dark:bg-emerald-900/20 dark:text-emerald-300"
+                      : "border-slate-300 bg-slate-100 text-slate-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-500"
+                  }`}
+                  onClick={handleSubmitForReview}
                 >
                   <CheckCircle2 className="h-4 w-4" />
-                  {isSaving ? "Đang xử lý..." : "Tạo và gửi duyệt"}
+                  {isSaving
+                    ? "Đang xử lý..."
+                    : hasSavedLessons
+                      ? "Gửi duyệt"
+                      : "Cần lưu bài học trước"}
                 </button>
               </div>
             </form>
@@ -671,10 +781,12 @@ export default function InstructorCreateCoursePage() {
                 </button>
                 <button
                   type="button"
+                  disabled={isSaving}
+                  onClick={handleSaveLessons}
                   className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-cyan-400 hover:text-cyan-700 dark:border-slate-700 dark:text-slate-300"
                 >
                   <Save className="h-4 w-4" />
-                  Lưu danh sách bài học
+                  {isSaving ? "Đang lưu..." : "Lưu danh sách bài học"}
                 </button>
               </div>
             </div>

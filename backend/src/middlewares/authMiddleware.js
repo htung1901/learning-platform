@@ -20,19 +20,27 @@ export const protectedRoute = (req, res, next) => {
         if (err) {
           console.error(err);
 
-          return res.status(403).json({ message: "Access token hết hạn hoặc không đúng" });
+          // Expired/invalid access token should be treated as unauthorized
+          return res
+            .status(401)
+            .json({
+              message: "Access token hết hạn hoặc không đúng",
+              code: "ACCESS_TOKEN_INVALID",
+            });
         }
 
         // tìm user
-        const user = await User.findById(decodedUser.userId).select("-hashedPassword");
+        const user = await User.findById(decodedUser.userId).select(
+          "-hashedPassword",
+        );
 
         if (!user) {
           return res.status(404).json({ message: "người dùng không tồn tại." });
         }
 
         // trả user về trong req
-        req.user = user
-        next()
+        req.user = user;
+        next();
       },
     );
   } catch (error) {

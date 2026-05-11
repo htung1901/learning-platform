@@ -53,6 +53,21 @@ const courseSchema = new mongoose.Schema(
   },
 );
 
+// Lessons subdocuments
+const lessonSchema = new mongoose.Schema(
+  {
+    title: { type: String, required: true },
+    videoUrl: { type: String },
+    duration: { type: Number, default: 0 }, // seconds
+    summary: { type: String },
+    order: { type: Number, default: 0 },
+    resources: { type: [String], default: [] },
+  },
+  { _id: true, timestamps: true },
+);
+
+courseSchema.add({ lessons: { type: [lessonSchema], default: [] } });
+
 // Index để tìm khóa học chờ duyệt
 courseSchema.index({ status: 1, submittedAt: 1 });
 

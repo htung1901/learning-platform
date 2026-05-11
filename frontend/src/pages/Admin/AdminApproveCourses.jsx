@@ -7,7 +7,7 @@ import { toast } from "sonner";
 
 export default function AdminApproveCourses() {
   const navigate = useNavigate();
-  const { user } = useAuthStore();
+  const { user, isAuthenticated } = useAuthStore();
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pagination, setPagination] = useState(null);
@@ -26,17 +26,25 @@ export default function AdminApproveCourses() {
   }, [user, navigate]);
 
   // Lấy danh sách khóa học chờ duyệt
-  const fetchCourses = useCallback(async (page = 1) => {
-    try {
-      const data = await adminService.getPendingCourses(page, 5);
-      setCourses(data.data);
-      setPagination(data.pagination);
-    } catch (error) {
-      toast.error("Lỗi khi lấy danh sách: " + error.message);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const fetchCourses = useCallback(
+    async (page = 1) => {
+      try {
+        const data = await adminService.getPendingCourses(page, 5);
+        setCourses(data.data);
+        setPagination(data.pagination);
+      } catch (error) {
+        // If user is no longer authenticated, interceptor handled logout - don't show error
+        if (isAuthenticated) {
+          toast.error(
+            error?.response?.data?.message || "Lỗi khi lấy danh sách",
+          );
+        }
+      } finally {
+        setLoading(false);
+      }
+    },
+    [isAuthenticated],
+  );
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -50,7 +58,10 @@ export default function AdminApproveCourses() {
       toast.success("Đã duyệt khóa học");
       setCourses(courses.filter((c) => c._id !== courseId));
     } catch (error) {
-      toast.error("Lỗi khi duyệt: " + error.message);
+      // If user is no longer authenticated, interceptor handled logout - don't show error
+      if (isAuthenticated) {
+        toast.error(error?.response?.data?.message || "Lỗi khi duyệt");
+      }
     } finally {
       setActionLoading(null);
     }
@@ -71,7 +82,10 @@ export default function AdminApproveCourses() {
       setRejectReason("");
       setSelectedCourseId(null);
     } catch (error) {
-      toast.error("Lỗi khi từ chối: " + error.message);
+      // If user is no longer authenticated, interceptor handled logout - don't show error
+      if (isAuthenticated) {
+        toast.error(error?.response?.data?.message || "Lỗi khi từ chối");
+      }
     } finally {
       setActionLoading(null);
     }

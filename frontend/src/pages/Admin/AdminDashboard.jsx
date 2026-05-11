@@ -7,7 +7,7 @@ import { toast } from "sonner";
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
-  const { user } = useAuthStore();
+  const { user, isAuthenticated } = useAuthStore();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -27,14 +27,17 @@ export default function AdminDashboard() {
         const data = await adminService.getStats();
         setStats(data.data);
       } catch (error) {
-        toast.error("Lỗi khi lấy thống kê: " + error.message);
+        // If user is no longer authenticated, interceptor handled logout - don't show error
+        if (isAuthenticated) {
+          toast.error(error?.response?.data?.message || "Lỗi khi lấy thống kê");
+        }
       } finally {
         setLoading(false);
       }
     };
 
     fetchStats();
-  }, []);
+  }, [isAuthenticated]);
 
   if (loading) {
     return (

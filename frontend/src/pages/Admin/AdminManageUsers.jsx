@@ -7,7 +7,7 @@ import { toast } from "sonner";
 
 export default function AdminManageUsers() {
   const navigate = useNavigate();
-  const { user } = useAuthStore();
+  const { user, isAuthenticated } = useAuthStore();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pagination, setPagination] = useState(null);
@@ -31,12 +31,17 @@ export default function AdminManageUsers() {
         setUsers(data.data);
         setPagination(data.pagination);
       } catch (error) {
-        toast.error("Lỗi khi lấy danh sách: " + error.message);
+        // If user is no longer authenticated, interceptor handled logout - don't show error
+        if (isAuthenticated) {
+          toast.error(
+            error?.response?.data?.message || "Lỗi khi lấy danh sách",
+          );
+        }
       } finally {
         setLoading(false);
       }
     },
-    [roleFilter],
+    [roleFilter, isAuthenticated],
   );
 
   useEffect(() => {
@@ -54,7 +59,10 @@ export default function AdminManageUsers() {
         users.map((u) => (u._id === userId ? { ...u, role: newRole } : u)),
       );
     } catch (error) {
-      toast.error("Lỗi khi cập nhật: " + error.message);
+      // If user is no longer authenticated, interceptor handled logout - don't show error
+      if (isAuthenticated) {
+        toast.error(error?.response?.data?.message || "Lỗi khi cập nhật");
+      }
     } finally {
       setUpdateLoading(null);
     }

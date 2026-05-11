@@ -6,6 +6,20 @@ import Session from "../models/Session.js";
 
 const ACCESS_TOKEN_TTL = "30m";
 const REFRESH_TOKEN_TTL = 14 * 24 * 60 * 60 * 1000; // 14 ngày theo ms
+const IS_PRODUCTION = process.env.NODE_ENV === "production";
+const REFRESH_COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: IS_PRODUCTION,
+  sameSite: IS_PRODUCTION ? "none" : "lax",
+  path: "/",
+  maxAge: REFRESH_TOKEN_TTL,
+};
+const REFRESH_COOKIE_CLEAR_OPTIONS = {
+  httpOnly: true,
+  secure: IS_PRODUCTION,
+  sameSite: IS_PRODUCTION ? "none" : "lax",
+  path: "/",
+};
 
 export const signUp = async (req, res) => {
   try {
@@ -92,12 +106,7 @@ export const signIn = async (req, res) => {
     });
 
     // trả refresh token về trong cookie
-    res.cookie("refreshToken", refreshToken, {
-      httpOnly: true,
-      secure: true,
-      sameSite: "none", // cho phep backend va frontend chay tren 2 domain khac nhau (deploy rieng)
-      maxAge: REFRESH_TOKEN_TTL,
-    });
+    res.cookie("refreshToken", refreshToken, REFRESH_COOKIE_OPTIONS);
 
     // Prepare user response (exclude hashedPassword)
     const userResponse = user.toObject();
@@ -123,7 +132,7 @@ export const signOut = async (req, res) => {
       // xóa refresh token trong Session
       await Session.deleteOne({ refreshToken: token });
       // xóa cookie
-      res.clearCookie("refreshToken");
+      res.clearCookie("refreshToken", REFRESH_COOKIE_CLEAR_OPTIONS);
     }
 
     return res.sendStatus(204);
@@ -154,7 +163,7 @@ export const refresh = async (req, res) => {
     // kiểm tra xem refresh token đã hết hạn không
     if (session.expiresAt < new Date()) {
       await Session.deleteOne({ _id: session._id });
-      res.clearCookie("refreshToken");
+      res.clearCookie("refreshToken", REFRESH_COOKIE_CLEAR_OPTIONS);
       return res.status(401).json({ message: "Refresh token đã hết hạn" });
     }
 
