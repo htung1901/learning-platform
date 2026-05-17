@@ -23,6 +23,7 @@ import InstructorCommunicationPage from "./pages/Instructor/InstructorCommunicat
 import InstructorPerformancePage from "./pages/Instructor/InstructorPerformancePage";
 import InstructorToolsPage from "./pages/Instructor/InstructorToolsPage";
 import StudentDashboardPage from "./pages/Student/StudentDashboardPage";
+import AvailableCourses from "./pages/Student/AvailableCourses";
 import AdminAuthPage from "./pages/Admin/AdminAuthPage";
 import AdminDashboard from "./pages/Admin/AdminDashboard";
 import AdminApproveCourses from "./pages/Admin/AdminApproveCourses";
@@ -125,6 +126,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <StudentDashboardPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/student/courses/available"
+              element={
+                <ProtectedRoute>
+                  <AvailableCourses />
                 </ProtectedRoute>
               }
             />

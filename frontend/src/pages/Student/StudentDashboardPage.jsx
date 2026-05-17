@@ -165,7 +165,7 @@ export default function StudentDashboardPage() {
                 <ChevronRight className="h-4 w-4" />
               </button>
               <Link
-                to={ROUTES.COURSES}
+                to={ROUTES.AVAILABLE_COURSES}
                 className="inline-flex items-center gap-1 text-sm font-semibold text-cyan-600 hover:text-cyan-700 dark:text-cyan-400"
               >
                 Xem them khoa hoc

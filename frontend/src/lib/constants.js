@@ -41,6 +41,7 @@ export const ROUTES = {
   ENROLLED_COURSES: "/my-courses",
   PURCHASE_HISTORY: "/purchase-history",
   LESSON: "/lesson/:courseId/:lessonId",
+  AVAILABLE_COURSES: "/student/courses/available",
 };
 
 // Time constants

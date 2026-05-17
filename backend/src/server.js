@@ -7,6 +7,8 @@ import cors from "cors";
 import userRoute from "./routes/userRoute.js";
 import adminRoute from "./routes/adminRoute.js";
 import instructorRoute from "./routes/instructorRoute.js";
+import studentRoute from "./routes/studentRoute.js";
+import courseRoute from "./routes/courseRoute.js";
 import { protectedRoute } from "./middlewares/authMiddleware.js";
 
 dotenv.config();
@@ -32,6 +34,12 @@ app.use("/api/admin", adminRoute);
 
 // instructor routes
 app.use("/api/instructor", instructorRoute);
+
+// student routes
+app.use("/api/student", studentRoute);
+
+// public courses
+app.use("/api/courses", courseRoute);
 
 // private routes
 app.use(protectedRoute);
