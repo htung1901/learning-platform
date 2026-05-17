@@ -175,11 +175,9 @@ export const updateMyCourse = async (req, res) => {
       return res.status(404).json({ message: "Không tìm thấy khóa học" });
     }
 
-    if (course.status === "published" && user.role !== "admin") {
-      return res
-        .status(400)
-        .json({ message: "Khóa học đã xuất bản không thể sửa trực tiếp" });
-    }
+    // Allow instructors to edit published courses without requiring admin re-approval.
+    // Previously we blocked edits to published courses for non-admins; that restriction
+    // is removed so instructors can update their published course content directly.
 
     const originalTitle = course.title;
 
@@ -208,9 +206,7 @@ export const updateMyCourse = async (req, res) => {
       course.title = req.body.title.trim();
     }
 
-    if (course.status === "published" && user.role === "admin") {
-      course.status = "draft";
-    }
+    // Do not change course.status when instructors edit a published course.
 
     await course.save();
 

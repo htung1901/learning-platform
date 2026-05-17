@@ -15,6 +15,7 @@ export default function AdminApproveCourses() {
   const [selectedCourseId, setSelectedCourseId] = useState(null);
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
   const [actionLoading, setActionLoading] = useState(null);
+  const [expandedCourses, setExpandedCourses] = useState([]);
 
   // Kiểm tra role admin
   useEffect(() => {
@@ -170,6 +171,22 @@ export default function AdminApproveCourses() {
                 {/* Actions */}
                 <div className="flex gap-3">
                   <button
+                    onClick={() => {
+                      if (expandedCourses.includes(course._id)) {
+                        setExpandedCourses((prev) =>
+                          prev.filter((id) => id !== course._id),
+                        );
+                      } else {
+                        setExpandedCourses((prev) => [...prev, course._id]);
+                      }
+                    }}
+                    className="text-sm px-3 py-1 rounded bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600"
+                  >
+                    {expandedCourses.includes(course._id)
+                      ? "Ẩn bài học"
+                      : "Xem bài học"}
+                  </button>
+                  <button
                     onClick={() => handleApprove(course._id)}
                     disabled={actionLoading !== null}
                     className="flex items-center gap-2 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-2 px-4 rounded-lg transition"
@@ -193,6 +210,49 @@ export default function AdminApproveCourses() {
                     Từ Chối
                   </button>
                 </div>
+                {/* Lesson details (expandable) */}
+                {expandedCourses.includes(course._id) && (
+                  <div className="mt-4 border-t pt-4 text-sm text-slate-700 dark:text-slate-300">
+                    {course.lessons && course.lessons.length > 0 ? (
+                      <div className="space-y-3">
+                        {course.lessons
+                          .slice()
+                          .sort((a, b) => (a.order || 0) - (b.order || 0))
+                          .map((lesson, idx) => (
+                            <div
+                              key={lesson._id || idx}
+                              className="p-3 bg-slate-50 dark:bg-slate-800 rounded-lg"
+                            >
+                              <div className="flex justify-between items-start">
+                                <div>
+                                  <div className="font-semibold">
+                                    {lesson.title || "(No title)"}
+                                  </div>
+                                  <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                                    {lesson.summary?.substring(0, 200)}
+                                  </div>
+                                </div>
+                                <div className="text-right text-xs text-slate-500">
+                                  <div>
+                                    {lesson.duration
+                                      ? `${Math.floor(lesson.duration / 60)}m ${lesson.duration % 60}s`
+                                      : "-"}
+                                  </div>
+                                  <div className="mt-1">
+                                    {lesson.resources?.length || 0} tài nguyên
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                      </div>
+                    ) : (
+                      <div className="text-slate-500">
+                        Khóa học chưa có bài học
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             ))}
           </div>
