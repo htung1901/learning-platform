@@ -19,14 +19,15 @@ const enrollmentSchema = new mongoose.Schema(
       enum: ["active", "completed", "cancelled", "refunded"],
       default: "active",
     },
-    purchasedAt: { type: Date },
+    purchasedAt: { type: Date, default: Date.now },
     completedAt: { type: Date },
+    amount: { type: Number, default: 0 },
+    paymentMethod: { type: String },
     progressPercent: { type: Number, default: 0 },
     lastAccessedAt: { type: Date },
+    metadata: { type: Object },
   },
-  {
-    timestamps: true,
-  },
+  { timestamps: true },
 );
 
 enrollmentSchema.index({ userId: 1, courseId: 1 }, { unique: true });

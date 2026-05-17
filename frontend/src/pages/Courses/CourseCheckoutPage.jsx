@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import { CreditCard, ShieldCheck, TicketPercent, Wallet } from "lucide-react";
-import { findCourseById } from "../../data/courseCatalog";
 import { ROUTES } from "../../lib/constants";
+import courseService from "../../services/courseService";
+import paymentService from "../../services/paymentService";
 
 const PAYMENT_METHODS = [
   { key: "card", label: "Thẻ ngân hàng", icon: CreditCard },
@@ -10,10 +11,7 @@ const PAYMENT_METHODS = [
   { key: "vnpay", label: "VNPay", icon: ShieldCheck },
 ];
 
-const parsePrice = (priceText) => {
-  const numeric = Number((priceText || "").replace(/\D/g, ""));
-  return Number.isFinite(numeric) ? numeric : 0;
-};
+// parsePrice removed; using numeric course.price from API
 
 const toCurrency = (value) =>
   value.toLocaleString("vi-VN", {
@@ -24,16 +22,35 @@ const toCurrency = (value) =>
 
 export default function CourseCheckoutPage() {
   const { id } = useParams();
-  const course = findCourseById(id);
+  const [course, setCourse] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [paymentMethod, setPaymentMethod] = useState("card");
   const [coupon, setCoupon] = useState("");
   const [isPaid, setIsPaid] = useState(false);
 
-  if (!course) {
-    return <Navigate to={ROUTES.COURSES} replace />;
-  }
+  useEffect(() => {
+    let mounted = true;
+    const fetch = async () => {
+      setLoading(true);
+      try {
+        const res = await courseService.getCourseById(id);
+        if (!mounted) return;
+        setCourse(res.data);
+      } catch {
+        if (!mounted) return;
+        setCourse(null);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+    fetch();
+    return () => (mounted = false);
+  }, [id]);
 
-  const price = parsePrice(course.price);
+  if (loading) return <div className="p-8">Loading...</div>;
+  if (!course) return <Navigate to={ROUTES.COURSES} replace />;
+
+  const price = Number(course.price || 0);
   const discount =
     coupon.trim().toUpperCase() === "SAVE10" ? Math.round(price * 0.1) : 0;
 
@@ -57,7 +74,7 @@ export default function CourseCheckoutPage() {
             </p>
             <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
               <Link
-                to={`/lesson/${course.id}/lesson-1`}
+                to={ROUTES.ENROLLED_COURSES}
                 className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-5 py-3 text-sm font-bold text-white transition hover:shadow-lg"
               >
                 Vào học ngay
@@ -94,19 +111,20 @@ export default function CourseCheckoutPage() {
           <article className="mt-6 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
             <div className="flex gap-4">
               <img
-                src={course.thumbnail}
+                src={course.thumbnailUrl}
                 alt={course.title}
                 className="h-24 w-36 rounded-xl object-cover"
               />
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                  {course.category} • {course.level}
+                  {course.category || "Chung"} • {course.level || "beginner"}
                 </p>
                 <h2 className="mt-1 text-lg font-bold text-slate-900 dark:text-white">
                   {course.title}
                 </h2>
                 <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                  Giảng viên: {course.instructor.name}
+                  Giảng viên:{" "}
+                  {course.instructorId?.displayName || course.instructor?.name}
                 </p>
               </div>
             </div>
@@ -205,14 +223,25 @@ export default function CourseCheckoutPage() {
 
           <button
             type="button"
-            onClick={() => setIsPaid(true)}
+            onClick={async () => {
+              try {
+                await paymentService.fakePay({
+                  courseId: course._id,
+                  paymentMethod,
+                });
+                setIsPaid(true);
+              } catch (e) {
+                console.error("Payment failed", e);
+                alert("Thanh toán thất bại (mô phỏng)");
+              }
+            }}
             className="mt-5 inline-flex w-full items-center justify-center rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-4 py-3 text-sm font-bold text-white transition hover:shadow-lg"
           >
             Xác nhận thanh toán
           </button>
 
           <Link
-            to={`/courses/${course.id}`}
+            to={`/courses/${course._id}`}
             className="mt-3 inline-flex w-full items-center justify-center rounded-xl border border-slate-300 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:border-cyan-400 hover:text-cyan-700 dark:border-slate-700 dark:text-slate-300"
           >
             Quay lại trang khóa học

@@ -10,6 +10,7 @@ import instructorRoute from "./routes/instructorRoute.js";
 import studentRoute from "./routes/studentRoute.js";
 import courseRoute from "./routes/courseRoute.js";
 import { protectedRoute } from "./middlewares/authMiddleware.js";
+import paymentRoute from "./routes/paymentRoute.js";
 
 dotenv.config();
 
@@ -44,6 +45,8 @@ app.use("/api/courses", courseRoute);
 // private routes
 app.use(protectedRoute);
 app.use("/api/users", userRoute);
+// payment routes (protected)
+app.use("/api/payments", paymentRoute);
 
 connectDB().then(() => {
   app.listen(PORT, () => {
