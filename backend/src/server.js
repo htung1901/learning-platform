@@ -17,12 +17,46 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5001;
 
+const buildAllowedOrigins = () => {
+  const envOrigins = [process.env.CLIENT_URL, process.env.CLIENT_URLS]
+    .filter(Boolean)
+    .flatMap((value) => value.split(","))
+    .map((value) => value.trim())
+    .filter(Boolean);
+
+  return new Set([
+    ...envOrigins,
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+  ]);
+};
+
+const isLocalDevOrigin = (origin) => {
+  return (
+    /^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin) ||
+    /^http:\/\/192\.168\.\d+\.\d+:\d+$/.test(origin) ||
+    /^http:\/\/10\.\d+\.\d+\.\d+:\d+$/.test(origin) ||
+    /^http:\/\/172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+:\d+$/.test(origin)
+  );
+};
+
 // middleware
 app.use(express.json());
 app.use(cookieParser());
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || "http://localhost:5173",
+    origin: (origin, callback) => {
+      const allowedOrigins = buildAllowedOrigins();
+
+      // Allow non-browser tools and common local development origins
+      if (!origin || allowedOrigins.has(origin) || isLocalDevOrigin(origin)) {
+        callback(null, true);
+        return;
+      }
+
+      console.warn("CORS blocked origin:", origin);
+      callback(new Error("Not allowed by CORS"));
+    },
     credentials: true,
   }),
 );
