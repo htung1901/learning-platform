@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import {
   BookOpen,
@@ -12,7 +12,7 @@ import {
   PlayCircle,
   SkipForward,
 } from "lucide-react";
-import { getLearningPayload } from "../../data/learningMock";
+import studentService from "../../services/studentService";
 import { ROUTES } from "../../lib/constants";
 
 const lessonBadgeClass = {
@@ -24,21 +24,78 @@ const lessonBadgeClass = {
 
 export default function CourseLearningPage() {
   const { courseId, lessonId } = useParams();
-  const payload = getLearningPayload(courseId);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [initialLessonId] = useState(lessonId);
 
-  const activeLessonIndex = useMemo(() => {
-    if (!payload) return 0;
-    const index = payload.lessons.findIndex((lesson) => lesson.id === lessonId);
-    return index >= 0 ? index : 0;
-  }, [payload, lessonId]);
+  // course-level data fetched once per course
+  const [courseData, setCourseData] = useState(null);
+  const [lessons, setLessons] = useState([]);
+  const [enrollment, setEnrollment] = useState(null);
 
-  if (!payload) {
+  // Fetch course + lessons + enrollment once for the given courseId.
+  // We use the lesson endpoint because it returns the course and lessons list.
+  useEffect(() => {
+    let mounted = true;
+    const fetchCourse = async () => {
+      setLoading(true);
+      setError("");
+      try {
+        const resp = await studentService.getLesson(courseId, initialLessonId);
+        if (!mounted) return;
+        // resp is { message, data }
+        const data = resp.data || resp; // defensive
+        setCourseData(data.course || null);
+        setLessons(data.lessons || []);
+        setEnrollment(data.enrollment || null);
+      } catch (err) {
+        console.error(err);
+        if (!mounted) return;
+        setError(err?.response?.data?.message || "Không thể tải bài học.");
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+
+    fetchCourse();
+    return () => {
+      mounted = false;
+    };
+    // only re-run when courseId changes; lessonId handled below
+  }, [courseId, initialLessonId]);
+
+  const activeLesson = useMemo(() => {
+    if (!lessons.length) return null;
+    return (
+      lessons.find(
+        (lesson) =>
+          String(lesson._id) === String(lessonId) ||
+          String(lesson.id) === String(lessonId),
+      ) || lessons[0]
+    );
+  }, [lessons, lessonId]);
+
+  if (loading) {
+    return (
+      <div className="p-8 text-center text-slate-600">Đang tải bài học...</div>
+    );
+  }
+
+  if (error || !courseData) {
     return <Navigate to={ROUTES.COURSES} replace />;
   }
 
-  const activeLesson = payload.lessons[activeLessonIndex] || payload.lessons[0];
-  const nextLesson = payload.lessons[activeLessonIndex + 1];
-  const progress = payload.course.progress || 0;
+  const activeIndex = lessons.findIndex(
+    (lesson) =>
+      String(lesson._id || lesson.id) ===
+      String(activeLesson?._id || activeLesson?.id),
+  );
+  const nextLesson = lessons[activeIndex + 1];
+  const progress = enrollment?.progressPercent || 0;
+
+  const videoSrc = activeLesson?.videoUrl || courseData?.introVideoUrl;
+  const isExternalVideo =
+    typeof videoSrc === "string" && /^https?:\/\//i.test(videoSrc);
 
   return (
     <div className="relative overflow-hidden py-10 sm:py-14">
@@ -51,15 +108,14 @@ export default function CourseLearningPage() {
         <section className="overflow-hidden rounded-3xl border border-white/60 bg-white/80 shadow-xl backdrop-blur-xl dark:border-slate-700/60 dark:bg-slate-900/70">
           <div className="border-b border-slate-200/70 p-6 dark:border-slate-700/70 sm:p-8">
             <div className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-              <span>{payload.course.category}</span>
-              <span>•</span>
-              <span>{payload.module}</span>
+              <span>{courseData?.category || ""}</span>
+              <span>{courseData?.level || ""}</span>
             </div>
             <h1 className="mt-3 text-3xl font-black tracking-tight text-slate-900 dark:text-white sm:text-4xl">
-              {payload.headline}
+              {courseData?.title}
             </h1>
             <p className="mt-2 text-slate-600 dark:text-slate-300">
-              {payload.currentTopic}
+              {activeLesson?.summary || courseData?.description || ""}
             </p>
 
             <div className="mt-5 flex flex-wrap items-center gap-3 text-sm text-slate-600 dark:text-slate-300">
@@ -69,7 +125,7 @@ export default function CourseLearningPage() {
               </span>
               <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 dark:bg-slate-800">
                 <BookOpen className="h-4 w-4" />
-                {payload.lessons.length} bài học
+                {lessons.length} bài học
               </span>
               <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1.5 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
                 <CheckCircle2 className="h-4 w-4" />
@@ -80,15 +136,29 @@ export default function CourseLearningPage() {
 
           <div className="p-4 sm:p-6">
             <div className="overflow-hidden rounded-3xl border border-slate-200 bg-slate-950 shadow-2xl dark:border-slate-800">
-              <div className="aspect-video w-full">
-                <iframe
-                  title={activeLesson?.title}
-                  src={payload.videoUrl}
-                  className="h-full w-full"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                  allowFullScreen
-                />
-              </div>
+              {isExternalVideo ? (
+                <div className="aspect-video w-full">
+                  <iframe
+                    title={activeLesson?.title}
+                    src={videoSrc}
+                    className="h-full w-full"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    allowFullScreen
+                  />
+                </div>
+              ) : (
+                <div className="aspect-video w-full flex items-center justify-center bg-slate-100 dark:bg-slate-900">
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="h-20 w-20 flex items-center justify-center rounded-full bg-white/80 dark:bg-white/10">
+                      <PlayCircle className="h-10 w-10 text-slate-900 dark:text-white" />
+                    </div>
+                    <p className="text-sm text-slate-700 dark:text-slate-300">
+                      Video chưa được cung cấp hoặc không thể nhúng tại đây — sẽ
+                      cập nhật sau
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="mt-5 grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
@@ -109,14 +179,31 @@ export default function CourseLearningPage() {
                 <div className="mt-4 flex flex-wrap gap-2">
                   <button
                     type="button"
-                    className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-4 py-2.5 text-sm font-bold text-white transition hover:shadow-lg"
+                    className="inline-flex items-center gap-2 rounded-xl bg-linear-to-r from-cyan-500 to-emerald-500 px-4 py-2.5 text-sm font-bold text-white transition hover:shadow-lg"
+                    onClick={async () => {
+                      try {
+                        const newProgress = Math.min(
+                          100,
+                          (enrollment?.progressPercent || 0) + 5,
+                        );
+                        const resp = await studentService.updateLessonProgress(
+                          courseId,
+                          activeLesson._id,
+                          { progressPercent: newProgress },
+                        );
+                        setEnrollment(resp.data || resp);
+                      } catch (e) {
+                        console.error(e);
+                      }
+                    }}
                   >
                     <CirclePlay className="h-4 w-4" />
                     Tiếp tục học
                   </button>
+
                   {nextLesson ? (
                     <Link
-                      to={`/lesson/${courseId}/${nextLesson.id}`}
+                      to={`/lesson/${courseId}/${nextLesson._id || nextLesson.id}`}
                       className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-cyan-400 hover:text-cyan-700 dark:border-slate-700 dark:text-slate-300"
                     >
                       <SkipForward className="h-4 w-4" />
@@ -132,7 +219,7 @@ export default function CourseLearningPage() {
                   Tài liệu đi kèm
                 </div>
                 <div className="mt-3 space-y-2">
-                  {payload.resources.map((resource) => (
+                  {(activeLesson?.resources || []).map((resource) => (
                     <div
                       key={resource}
                       className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-300"
@@ -164,12 +251,15 @@ export default function CourseLearningPage() {
               Lộ trình bài học
             </div>
             <div className="mt-4 space-y-3">
-              {payload.lessons.map((lesson, index) => {
-                const isActive = lesson.id === activeLesson?.id;
+              {lessons.map((lesson, index) => {
+                const lessonIdVal = lesson._id || lesson.id;
+                const isActive =
+                  String(lessonIdVal) ===
+                  String(activeLesson?._id || activeLesson?.id);
                 return (
                   <Link
-                    key={lesson.id}
-                    to={`/lesson/${courseId}/${lesson.id}`}
+                    key={lessonIdVal}
+                    to={`/lesson/${courseId}/${lessonIdVal}`}
                     className={`block rounded-2xl border px-4 py-3 transition ${
                       isActive
                         ? "border-cyan-500 bg-cyan-50 dark:border-cyan-400 dark:bg-cyan-900/20"

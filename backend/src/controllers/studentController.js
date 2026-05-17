@@ -115,3 +115,111 @@ export const getAvailableCourses = async (req, res) => {
 };
 
 export default { getMyCourses, getAvailableCourses };
+
+// Lấy payload bài học cho student (course + active lesson + enrollment)
+export const getLessonForStudent = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { courseId, lessonId } = req.params;
+
+    const enrollment = await Enrollment.findOne({ userId, courseId });
+    if (!enrollment) {
+      return res
+        .status(403)
+        .json({
+          message: "Bạn chưa đăng ký khóa học này hoặc không có quyền.",
+        });
+    }
+
+    const course = await Course.findById(courseId).populate(
+      "instructorId",
+      "displayName username",
+    );
+
+    if (!course) {
+      return res.status(404).json({ message: "Khóa học không tồn tại" });
+    }
+
+    const sortedLessons = [...(course.lessons || [])].sort(
+      (a, b) => (a.order || 0) - (b.order || 0),
+    );
+
+    const lesson = sortedLessons.find(
+      (l) => String(l._id) === String(lessonId),
+    );
+    if (!lesson) {
+      return res.status(404).json({ message: "Bài học không tồn tại" });
+    }
+
+    return res.status(200).json({
+      message: "Lấy bài học thành công",
+      data: {
+        course: {
+          _id: course._id,
+          title: course.title,
+          thumbnailUrl: course.thumbnailUrl,
+          introVideoUrl: course.introVideoUrl,
+          totalDuration: course.totalDuration || 0,
+          totalLessons: course.totalLessons || sortedLessons.length || 0,
+          instructor: {
+            displayName:
+              course.instructorId?.displayName ||
+              course.instructorId?.username ||
+              "",
+          },
+        },
+        lesson: lesson,
+        lessons: sortedLessons,
+        enrollment: {
+          progressPercent: enrollment.progressPercent || 0,
+          lastAccessedAt: enrollment.lastAccessedAt,
+          status: enrollment.status,
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Lỗi khi lấy bài học cho student", error);
+    return res.status(500).json({ message: "Lỗi hệ thống" });
+  }
+};
+
+// Cập nhật tiến độ bài học của student
+export const updateLessonProgress = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { courseId, lessonId } = req.params;
+    const { progressPercent, markCompleted } = req.body;
+
+    const enrollment = await Enrollment.findOne({ userId, courseId });
+    if (!enrollment) {
+      return res
+        .status(403)
+        .json({
+          message: "Bạn chưa đăng ký khóa học này hoặc không có quyền.",
+        });
+    }
+
+    if (typeof progressPercent === "number") {
+      enrollment.progressPercent = Math.max(
+        0,
+        Math.min(100, Math.round(progressPercent)),
+      );
+    }
+
+    if (markCompleted) {
+      enrollment.status = "completed";
+      enrollment.completedAt = new Date();
+      enrollment.progressPercent = 100;
+    }
+
+    enrollment.lastAccessedAt = new Date();
+    await enrollment.save();
+
+    return res
+      .status(200)
+      .json({ message: "Cập nhật tiến độ thành công", data: enrollment });
+  } catch (error) {
+    console.error("Lỗi khi cập nhật tiến độ bài học", error);
+    return res.status(500).json({ message: "Lỗi hệ thống" });
+  }
+};
