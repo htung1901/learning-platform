@@ -6,6 +6,7 @@ export const instructorService = {
     const formData = new FormData();
     formData.append("image", file);
 
+    // Ensure request is sent as multipart form-data so multer on the backend can parse it.
     const res = await api.post("/api/upload-image", formData, {
       headers: {
         "Content-Type": "multipart/form-data",

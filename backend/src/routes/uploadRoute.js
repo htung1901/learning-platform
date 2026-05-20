@@ -33,9 +33,11 @@ router.post(
       }
 
       console.error("Lỗi upload:", error);
+      // Return stack for debugging (remove in production)
       res.status(500).json({
         message: "Lỗi khi tải lên ảnh",
         error: error.message,
+        stack: error.stack,
       });
     }
   },
@@ -68,9 +70,11 @@ router.post(
       }
 
       console.error("Lỗi upload:", error);
+      // Return stack for debugging (remove in production)
       res.status(500).json({
         message: "Lỗi khi tải lên video",
         error: error.message,
+        stack: error.stack,
       });
     }
   },

@@ -103,7 +103,8 @@ export default function InstructorEditLessonsPage() {
   const [courseLevel, setCourseLevel] = useState("beginner");
   const [coursePrice, setCoursePrice] = useState(0);
   const [thumbnailUrl, setThumbnailUrl] = useState("");
-  const [isUploadingThumbnail, setIsUploadingThumbnail] = useState(false);
+  const [thumbnailFile, setThumbnailFile] = useState(null);
+  const [thumbnailPreviewUrl, setThumbnailPreviewUrl] = useState("");
   const [introVideoUrl, setIntroVideoUrl] = useState("");
   const [hasPrerequisites, setHasPrerequisites] = useState(false);
   const [searchPrerequisites, setSearchPrerequisites] = useState("");
@@ -135,6 +136,8 @@ export default function InstructorEditLessonsPage() {
         setCourseLevel(data.level || "beginner");
         setCoursePrice(data.price || 0);
         setThumbnailUrl(data.thumbnailUrl || "");
+        setThumbnailFile(null);
+        setThumbnailPreviewUrl("");
         setIntroVideoUrl(data.introVideoUrl || "");
         setHasPrerequisites((data.prerequisites || []).length > 0);
         setSelectedPrerequisites(
@@ -193,23 +196,32 @@ export default function InstructorEditLessonsPage() {
     );
   };
 
-  const handleThumbnailUpload = async (event) => {
+  // NOTE: Keep the selected image local for preview; upload to Cloudinary only when saving.
+  const handleThumbnailUpload = (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    try {
-      setIsUploadingThumbnail(true);
-      const imageUrl = await instructorService.uploadThumbnailImage(file);
-      setThumbnailUrl(imageUrl);
-      toast.success("Đã tải ảnh thumbnail lên Cloudinary");
-    } catch (error) {
-      if (isAuthenticated) {
-        toast.error(error?.response?.data?.message || "Không thể tải ảnh lên");
-      }
-    } finally {
-      setIsUploadingThumbnail(false);
-      event.target.value = "";
+    setThumbnailFile(file);
+    setThumbnailUrl("");
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setThumbnailPreviewUrl(String(reader.result || ""));
+    };
+    reader.readAsDataURL(file);
+    event.target.value = "";
+  };
+
+  const resolveThumbnailUrl = async () => {
+    if (thumbnailFile) {
+      const uploadedUrl =
+        await instructorService.uploadThumbnailImage(thumbnailFile);
+      setThumbnailUrl(uploadedUrl);
+      setThumbnailFile(null);
+      return uploadedUrl;
     }
+
+    return thumbnailUrl.trim() || undefined;
   };
 
   const handleLessonChange = (lessonId, field, value) => {
@@ -296,10 +308,10 @@ export default function InstructorEditLessonsPage() {
     try {
       setIsSaving(true);
 
-      const updatedCourse = await instructorService.updateCourse(
-        id,
-        buildCoursePayload(),
-      );
+      const updatedCourse = await instructorService.updateCourse(id, {
+        ...buildCoursePayload(),
+        thumbnailUrl: await resolveThumbnailUrl(),
+      });
       setCourse(updatedCourse);
 
       for (const lessonId of removedLessonIds) {
@@ -454,26 +466,41 @@ export default function InstructorEditLessonsPage() {
               Ảnh bìa
             </span>
             <div className="space-y-3 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/50">
+              <p className="text-xs text-slate-400">
+                Ghi chú: Chọn ảnh để xem preview trước, Cloudinary chỉ được lưu
+                khi bạn bấm Lưu thay đổi.
+              </p>
               <div className="flex flex-wrap items-center gap-3">
                 <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-cyan-300 bg-cyan-50 px-4 py-2 text-sm font-semibold text-cyan-700 transition hover:bg-cyan-100 dark:border-cyan-700/40 dark:bg-cyan-900/20 dark:text-cyan-300">
                   <ImagePlus className="h-4 w-4" />
-                  {isUploadingThumbnail ? "Đang tải ảnh..." : "Chọn ảnh từ máy"}
+                  Chọn ảnh từ máy
                   <input
                     type="file"
                     accept="image/*"
                     className="hidden"
                     onChange={handleThumbnailUpload}
-                    disabled={isUploadingThumbnail}
                   />
                 </label>
                 <input
                   className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-cyan-400 focus:ring-4 focus:ring-cyan-200/60 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:focus:ring-cyan-500/20"
                   placeholder="Hoặc dán link ảnh thumbnail"
                   value={thumbnailUrl}
-                  onChange={(event) => setThumbnailUrl(event.target.value)}
+                  onChange={(event) => {
+                    setThumbnailUrl(event.target.value);
+                    setThumbnailFile(null);
+                    setThumbnailPreviewUrl("");
+                  }}
                 />
               </div>
-              {thumbnailUrl && (
+              {thumbnailPreviewUrl ? (
+                <div className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
+                  <img
+                    src={thumbnailPreviewUrl}
+                    alt="Thumbnail preview"
+                    className="h-44 w-full object-cover"
+                  />
+                </div>
+              ) : thumbnailUrl ? (
                 <div className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
                   <img
                     src={thumbnailUrl}
@@ -481,7 +508,7 @@ export default function InstructorEditLessonsPage() {
                     className="h-44 w-full object-cover"
                   />
                 </div>
-              )}
+              ) : null}
             </div>
           </label>
 
