@@ -11,6 +11,7 @@ import studentRoute from "./routes/studentRoute.js";
 import courseRoute from "./routes/courseRoute.js";
 import { protectedRoute } from "./middlewares/authMiddleware.js";
 import paymentRoute from "./routes/paymentRoute.js";
+import uploadRoute from "./routes/uploadRoute.js";
 
 dotenv.config();
 
@@ -75,6 +76,9 @@ app.use("/api/student", studentRoute);
 
 // public courses
 app.use("/api/courses", courseRoute);
+
+// upload routes (protected)
+app.use("/api", uploadRoute);
 
 // private routes
 app.use(protectedRoute);

@@ -2,6 +2,19 @@ import api from "../lib/api";
 import { API_ENDPOINTS } from "../lib/constants";
 
 export const instructorService = {
+  uploadThumbnailImage: async (file) => {
+    const formData = new FormData();
+    formData.append("image", file);
+
+    const res = await api.post("/api/upload-image", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+
+    return res.data.imageUrl;
+  },
+
   getMyCourses: async () => {
     const res = await api.get(API_ENDPOINTS.INSTRUCTOR_COURSES);
     return res.data.courses || [];

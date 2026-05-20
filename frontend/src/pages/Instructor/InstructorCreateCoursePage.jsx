@@ -65,6 +65,7 @@ export default function InstructorCreateCoursePage() {
   const [courseLevel, setCourseLevel] = useState("beginner");
   const [coursePrice, setCoursePrice] = useState(0);
   const [thumbnailUrl, setThumbnailUrl] = useState("");
+  const [isUploadingThumbnail, setIsUploadingThumbnail] = useState(false);
   const [introVideoUrl, setIntroVideoUrl] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [savedCourseId, setSavedCourseId] = useState(null);
@@ -98,6 +99,25 @@ export default function InstructorCreateCoursePage() {
     setSelectedPrerequisites((prev) =>
       prev.filter((course) => course.id !== courseId),
     );
+  };
+
+  const handleThumbnailUpload = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setIsUploadingThumbnail(true);
+      const imageUrl = await instructorService.uploadThumbnailImage(file);
+      setThumbnailUrl(imageUrl);
+      toast.success("Đã tải ảnh thumbnail lên Cloudinary");
+    } catch (error) {
+      if (isAuthenticated) {
+        toast.error(error?.response?.data?.message || "Không thể tải ảnh lên");
+      }
+    } finally {
+      setIsUploadingThumbnail(false);
+      event.target.value = "";
+    }
   };
 
   const buildCoursePayload = (status = "draft") => ({
@@ -421,16 +441,39 @@ export default function InstructorCreateCoursePage() {
                     <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
                       Ảnh bìa
                     </span>
-                    <div className="flex items-center gap-2 rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-300">
-                      <ImagePlus className="h-4 w-4 text-cyan-600 dark:text-cyan-300" />
-                      <input
-                        className="w-full bg-transparent text-sm outline-none placeholder:text-slate-400"
-                        placeholder="Dán link ảnh thumbnail"
-                        value={thumbnailUrl}
-                        onChange={(event) =>
-                          setThumbnailUrl(event.target.value)
-                        }
-                      />
+                    <div className="space-y-3 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/50">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-cyan-300 bg-cyan-50 px-4 py-2 text-sm font-semibold text-cyan-700 transition hover:bg-cyan-100 dark:border-cyan-700/40 dark:bg-cyan-900/20 dark:text-cyan-300">
+                          <ImagePlus className="h-4 w-4" />
+                          {isUploadingThumbnail
+                            ? "Đang tải ảnh..."
+                            : "Chọn ảnh từ máy"}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={handleThumbnailUpload}
+                            disabled={isUploadingThumbnail}
+                          />
+                        </label>
+                        <input
+                          className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-cyan-400 focus:ring-4 focus:ring-cyan-200/60 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:focus:ring-cyan-500/20"
+                          placeholder="Hoặc dán link ảnh thumbnail"
+                          value={thumbnailUrl}
+                          onChange={(event) =>
+                            setThumbnailUrl(event.target.value)
+                          }
+                        />
+                      </div>
+                      {thumbnailUrl && (
+                        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
+                          <img
+                            src={thumbnailUrl}
+                            alt="Thumbnail preview"
+                            className="h-44 w-full object-cover"
+                          />
+                        </div>
+                      )}
                     </div>
                   </label>
 
@@ -498,7 +541,7 @@ export default function InstructorCreateCoursePage() {
                       onChange={(e) => setHasPrerequisites(e.target.checked)}
                       className="sr-only peer"
                     />
-                    <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-cyan-300 dark:peer-focus:ring-cyan-800 rounded-full peer dark:bg-slate-600 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-500 peer-checked:bg-cyan-600" />
+                    <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-cyan-300 dark:peer-focus:ring-cyan-800 rounded-full peer dark:bg-slate-600 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-500 peer-checked:bg-cyan-600" />
                   </label>
                 </div>
 
