@@ -77,14 +77,13 @@ app.use("/api/student", studentRoute);
 // public courses
 app.use("/api/courses", courseRoute);
 
-// upload routes (protected)
-app.use("/api", uploadRoute);
-
 // private routes
 app.use(protectedRoute);
 app.use("/api/users", userRoute);
 // payment routes (protected)
 app.use("/api/payments", paymentRoute);
+// upload routes (protected)
+app.use("/api", uploadRoute);
 
 connectDB().then(() => {
   app.listen(PORT, () => {
