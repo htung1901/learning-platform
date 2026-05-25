@@ -11,6 +11,7 @@ import HomePage from "./pages/Home/HomePage";
 import CoursesPage from "./pages/Courses/CoursesPage";
 import CourseDetailPage from "./pages/Courses/CourseDetailPage";
 import CourseCheckoutPage from "./pages/Courses/CourseCheckoutPage";
+import CartCheckoutPage from "./pages/Courses/CartCheckoutPage";
 import CourseLearningPage from "./pages/Courses/CourseLearningPage";
 import CartPage from "./pages/Student/CartPage";
 import InstructorLayout from "./pages/Instructor/InstructorLayout";
@@ -104,6 +105,7 @@ function App() {
             <Route path="/courses" element={<CoursesPage />} />
             <Route path="/courses/:id" element={<CourseDetailPage />} />
             <Route path="/cart" element={<CartPage />} />
+            <Route path="/checkout/cart" element={<CartCheckoutPage />} />
             <Route path="/checkout/:id" element={<CourseCheckoutPage />} />
             <Route
               path="/lesson/:courseId/:lessonId"

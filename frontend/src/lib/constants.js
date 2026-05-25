@@ -15,6 +15,8 @@ export const API_ENDPOINTS = {
 
   // Instructor
   INSTRUCTOR_COURSES: "/api/instructor/courses",
+  // Cart
+  CART: "/api/cart",
 };
 
 // Frontend routes
@@ -38,6 +40,7 @@ export const ROUTES = {
   CART: "/cart",
   CHECKOUT: "/checkout",
   CHECKOUT_COURSE: "/checkout/:id",
+  CHECKOUT_CART: "/checkout/cart",
   ENROLLED_COURSES: "/my-courses",
   PURCHASE_HISTORY: "/purchase-history",
   LESSON: "/lesson/:courseId/:lessonId",

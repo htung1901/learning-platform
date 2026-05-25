@@ -486,11 +486,15 @@ export default function InstructorCreateCoursePage() {
 
                   <label className="space-y-2 md:col-span-2">
                     <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                      Intro video (optional)
+                      Intro video YouTube unlisted (optional)
                     </span>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      Dán link YouTube ở chế độ unlisted để học viên xem trực
+                      tiếp trong bài học.
+                    </p>
                     <input
                       className={fieldClassName}
-                      placeholder="https://..."
+                      placeholder="https://www.youtube.com/watch?v=..."
                       value={introVideoUrl}
                       onChange={(event) => setIntroVideoUrl(event.target.value)}
                     />
@@ -739,13 +743,17 @@ export default function InstructorCreateCoursePage() {
 
                       <label className="space-y-2 md:col-span-2">
                         <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                          Link video
+                          Link video YouTube unlisted
                         </span>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                          Dán link video YouTube riêng cho bài học này. Khi học
+                          viên mở bài, link sẽ được nhúng trực tiếp.
+                        </p>
                         <div className="relative">
                           <Video className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                           <input
                             className="w-full rounded-xl border border-slate-200 bg-white py-3 pr-4 pl-9 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-cyan-400 focus:ring-4 focus:ring-cyan-200/60 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:focus:ring-cyan-500/20"
-                            placeholder="https://..."
+                            placeholder="https://www.youtube.com/watch?v=..."
                             value={lesson.videoUrl}
                             onChange={(event) =>
                               handleLessonChange(

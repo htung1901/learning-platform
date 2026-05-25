@@ -96,6 +96,37 @@ export default function CourseLearningPage() {
   const videoSrc = activeLesson?.videoUrl || courseData?.introVideoUrl;
   const isExternalVideo =
     typeof videoSrc === "string" && /^https?:\/\//i.test(videoSrc);
+  const getEmbeddableVideoSrc = (url) => {
+    if (!url || typeof url !== "string") return "";
+
+    if (url.includes("youtube.com/embed/")) return url;
+
+    try {
+      const parsedUrl = new URL(url);
+      const host = parsedUrl.hostname.replace(/^www\./, "");
+      const videoIdFromPath = parsedUrl.pathname
+        .split("/")
+        .filter(Boolean)
+        .pop();
+
+      if (host === "youtu.be" && videoIdFromPath) {
+        return `https://www.youtube.com/embed/${videoIdFromPath}`;
+      }
+
+      if (host.endsWith("youtube.com")) {
+        const videoId = parsedUrl.searchParams.get("v") || videoIdFromPath;
+        if (videoId) {
+          return `https://www.youtube.com/embed/${videoId}`;
+        }
+      }
+    } catch {
+      return url;
+    }
+
+    return url;
+  };
+
+  const embeddedVideoSrc = getEmbeddableVideoSrc(videoSrc);
 
   return (
     <div className="relative overflow-hidden py-10 sm:py-14">
@@ -140,7 +171,7 @@ export default function CourseLearningPage() {
                 <div className="aspect-video w-full">
                   <iframe
                     title={activeLesson?.title}
-                    src={videoSrc}
+                    src={embeddedVideoSrc}
                     className="h-full w-full"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                     allowFullScreen

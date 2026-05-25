@@ -9,6 +9,8 @@ import {
   ShoppingCart,
 } from "lucide-react";
 import courseService from "../../services/courseService";
+import cartService from "../../services/cartService";
+import { useNavigate } from "react-router-dom";
 import { ROUTES } from "../../lib/constants";
 import { useEffect, useState } from "react";
 
@@ -16,6 +18,7 @@ export default function CourseDetailPage() {
   const { id } = useParams();
   const [course, setCourse] = useState(null);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     let mounted = true;
@@ -122,13 +125,22 @@ export default function CourseDetailPage() {
                 </p>
 
                 <div className="mt-4 grid grid-cols-[auto_1fr] gap-3">
-                  <Link
-                    to={ROUTES.CART}
+                  <button
+                    onClick={async () => {
+                      try {
+                        await cartService.addToCart(course._id);
+                        navigate(ROUTES.CART);
+                      } catch (err) {
+                        console.error("Add to cart failed", err);
+                        // still navigate to cart to show current state
+                        navigate(ROUTES.CART);
+                      }
+                    }}
                     className="inline-flex h-12 w-12 items-center justify-center rounded-xl border border-cyan-200 bg-cyan-50 text-cyan-700 transition hover:border-cyan-300 hover:bg-cyan-100 dark:border-cyan-900/40 dark:bg-cyan-900/20 dark:text-cyan-300"
                     title="Thêm vào giỏ"
                   >
                     <ShoppingCart className="h-5 w-5" />
-                  </Link>
+                  </button>
 
                   <Link
                     to={`/checkout/${course._id}`}

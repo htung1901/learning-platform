@@ -12,6 +12,7 @@ import courseRoute from "./routes/courseRoute.js";
 import { protectedRoute } from "./middlewares/authMiddleware.js";
 import paymentRoute from "./routes/paymentRoute.js";
 import uploadRoute from "./routes/uploadRoute.js";
+import cartRoute from "./routes/cartRoute.js";
 
 dotenv.config();
 
@@ -79,6 +80,8 @@ app.use("/api/courses", courseRoute);
 
 // private routes
 app.use(protectedRoute);
+// cart routes (protected)
+app.use("/api/cart", cartRoute);
 app.use("/api/users", userRoute);
 // payment routes (protected)
 app.use("/api/payments", paymentRoute);

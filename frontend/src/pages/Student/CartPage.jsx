@@ -1,21 +1,9 @@
 import { Link, Navigate } from "react-router-dom";
-import {
-  ArrowRight,
-  CheckCircle2,
-  Minus,
-  Plus,
-  ShoppingCart,
-  Trash2,
-} from "lucide-react";
+import { ArrowRight, CheckCircle2, ShoppingCart, Trash2 } from "lucide-react";
 import { useAuthStore } from "../../store/authStore";
 import { ROUTES } from "../../lib/constants";
-import { COURSE_LIST } from "../../data/courseCatalog";
-
-const cartItems = COURSE_LIST.slice(0, 3).map((course, index) => ({
-  ...course,
-  quantity: index === 0 ? 1 : 1,
-  discount: index === 1 ? 10 : index === 2 ? 15 : 0,
-}));
+import { useEffect, useState } from "react";
+import cartService from "../../services/cartService";
 
 export default function CartPage() {
   const { user } = useAuthStore();
@@ -24,19 +12,51 @@ export default function CartPage() {
     return <Navigate to={ROUTES.DASHBOARD} replace />;
   }
 
-  const subtotal = cartItems.reduce((sum, item) => {
-    const numericPrice = Number(item.price.replace(/[^\d]/g, ""));
-    return sum + numericPrice * item.quantity;
-  }, 0);
+  const [cartItems, setCartItems] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const discountAmount = cartItems.reduce((sum, item) => {
-    const numericPrice = Number(item.price.replace(/[^\d]/g, ""));
-    return sum + (numericPrice * item.discount * item.quantity) / 100;
-  }, 0);
+  useEffect(() => {
+    let mounted = true;
+    const fetchCart = async () => {
+      setLoading(true);
+      try {
+        const res = await cartService.getCart();
+        if (!mounted) return;
+        setCartItems(res.data || []);
+      } catch (err) {
+        console.error("Failed to load cart", err);
+        if (mounted) setCartItems([]);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
 
+    fetchCart();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const subtotal = cartItems.reduce(
+    (sum, item) => sum + Number(item.price || 0),
+    0,
+  );
+  const discountAmount = 0;
   const total = subtotal - discountAmount;
 
-  const formatCurrency = (value) => `${value.toLocaleString("vi-VN")}đ`;
+  const formatCurrency = (value) =>
+    `${Number(value || 0).toLocaleString("vi-VN")}đ`;
+
+  const handleRemove = async (courseId) => {
+    try {
+      await cartService.removeFromCart(courseId);
+      setCartItems((prev) =>
+        prev.filter((c) => String(c._id) !== String(courseId)),
+      );
+    } catch (err) {
+      console.error("Failed to remove from cart", err);
+    }
+  };
 
   return (
     <div className="relative overflow-hidden py-12 sm:py-16">
@@ -63,87 +83,68 @@ export default function CartPage() {
 
           <div className="grid gap-6 p-4 sm:p-6 lg:grid-cols-[1.45fr_0.85fr] lg:p-8">
             <div className="space-y-4">
-              {cartItems.map((item) => (
-                <article
-                  key={item.id}
-                  className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:shadow-lg dark:border-slate-700 dark:bg-slate-950/50 sm:p-5"
-                >
-                  <div className="flex flex-col gap-4 md:flex-row md:items-start">
-                    <div className="relative h-40 w-full overflow-hidden rounded-2xl md:h-28 md:w-44 md:flex-shrink-0">
-                      <img
-                        src={item.thumbnail}
-                        alt={item.title}
-                        className="h-full w-full object-cover"
-                      />
-                      <span className="absolute left-3 top-3 rounded-full bg-slate-950/80 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur">
-                        {item.category}
-                      </span>
-                    </div>
-
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                        <div>
-                          <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-                            {item.title}
-                          </h2>
-                          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                            {item.category} • {item.level}
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          className="inline-flex items-center gap-2 self-start rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-600 transition hover:border-red-300 hover:bg-red-100 dark:border-red-900/30 dark:bg-red-900/20 dark:text-red-300"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                          Xóa
-                        </button>
-                      </div>
-
-                      <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-slate-600 dark:text-slate-300">
-                        <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 dark:bg-slate-800">
-                          <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                          Có video, bài tập và tài liệu
-                        </span>
-                        <span className="inline-flex items-center gap-1.5 rounded-full bg-cyan-50 px-3 py-1.5 text-cyan-700 dark:bg-cyan-900/20 dark:text-cyan-300">
-                          Giảm {item.discount}%
+              {loading ? (
+                <div className="p-4">Đang tải giỏ hàng...</div>
+              ) : (
+                cartItems.map((item) => (
+                  <article
+                    key={item._id}
+                    className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:shadow-lg dark:border-slate-700 dark:bg-slate-950/50 sm:p-5"
+                  >
+                    <div className="flex flex-col gap-4 md:flex-row md:items-start">
+                      <div className="relative h-40 w-full overflow-hidden rounded-2xl md:h-28 md:w-44 md:shrink-0">
+                        <img
+                          src={item.thumbnail || item.thumbnailUrl}
+                          alt={item.title}
+                          className="h-full w-full object-cover"
+                        />
+                        <span className="absolute left-3 top-3 rounded-full bg-slate-950/80 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur">
+                          {item.category}
                         </span>
                       </div>
 
-                      <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
-                        <div className="flex items-center gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                          <div>
+                            <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+                              {item.title}
+                            </h2>
+                            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                              {item.category || ""} • {item.level || ""}
+                            </p>
+                          </div>
                           <button
                             type="button"
-                            className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 transition hover:border-cyan-300 hover:text-cyan-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                            className="inline-flex items-center gap-2 self-start rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-600 transition hover:border-red-300 hover:bg-red-100 dark:border-red-900/30 dark:bg-red-900/20 dark:text-red-300"
+                            onClick={() => handleRemove(item._id)}
                           >
-                            <Minus className="h-4 w-4" />
+                            <Trash2 className="h-4 w-4" />
+                            Xóa
                           </button>
-                          <span className="min-w-12 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-center text-sm font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
-                            {item.quantity}
+                        </div>
+
+                        <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-slate-600 dark:text-slate-300">
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 dark:bg-slate-800">
+                            <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                            Có video, bài tập và tài liệu
                           </span>
-                          <button
-                            type="button"
-                            className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 transition hover:border-cyan-300 hover:text-cyan-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
-                          >
-                            <Plus className="h-4 w-4" />
-                          </button>
                         </div>
 
-                        <div className="text-right">
-                          <p className="text-sm text-slate-500 line-through dark:text-slate-400">
-                            {item.price}
-                          </p>
-                          <p className="text-xl font-black text-slate-900 dark:text-white">
-                            {formatCurrency(
-                              Number(item.price.replace(/[^\d]/g, "")) *
-                                (1 - item.discount / 100),
-                            )}
-                          </p>
+                        <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
+                          <div className="text-right">
+                            <p className="text-sm text-slate-500 line-through dark:text-slate-400">
+                              {formatCurrency(item.price)}
+                            </p>
+                            <p className="text-xl font-black text-slate-900 dark:text-white">
+                              {formatCurrency(item.price)}
+                            </p>
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                </article>
-              ))}
+                  </article>
+                ))
+              )}
             </div>
 
             <aside className="h-fit rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-950/50 sm:p-6">
@@ -182,13 +183,13 @@ export default function CartPage() {
                 </p>
               </div>
 
-              <button
-                type="button"
+              <Link
+                to={ROUTES.CHECKOUT_CART}
                 className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-linear-to-r from-cyan-500 to-emerald-500 px-5 py-3 text-sm font-bold text-white transition hover:shadow-lg"
               >
                 Thanh toán
                 <ArrowRight className="h-4 w-4" />
-              </button>
+              </Link>
 
               <Link
                 to={ROUTES.COURSES}
