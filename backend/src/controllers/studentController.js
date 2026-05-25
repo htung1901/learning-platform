@@ -25,11 +25,17 @@ export const getMyCourses = async (req, res) => {
           (a, b) => (a.order || 0) - (b.order || 0),
         );
         const totalLessons = course.totalLessons || sortedLessons.length || 0;
-        const progress = Math.max(
-          0,
-          Math.min(100, Math.round(item.progressPercent || 0)),
-        );
-        const completedLessons = Math.round((progress / 100) * totalLessons);
+        const completedLessons = item.completedLessonIds?.length || 0;
+        const progress =
+          totalLessons > 0
+            ? Math.max(
+                0,
+                Math.min(
+                  100,
+                  Math.round((completedLessons / totalLessons) * 100),
+                ),
+              )
+            : Math.max(0, Math.min(100, Math.round(item.progressPercent || 0)));
 
         return {
           enrollmentId: item._id,
@@ -124,11 +130,9 @@ export const getLessonForStudent = async (req, res) => {
 
     const enrollment = await Enrollment.findOne({ userId, courseId });
     if (!enrollment) {
-      return res
-        .status(403)
-        .json({
-          message: "Bạn chưa đăng ký khóa học này hoặc không có quyền.",
-        });
+      return res.status(403).json({
+        message: "Bạn chưa đăng ký khóa học này hoặc không có quyền.",
+      });
     }
 
     const course = await Course.findById(courseId).populate(
@@ -172,6 +176,7 @@ export const getLessonForStudent = async (req, res) => {
         lessons: sortedLessons,
         enrollment: {
           progressPercent: enrollment.progressPercent || 0,
+          completedLessonIds: enrollment.completedLessonIds || [],
           lastAccessedAt: enrollment.lastAccessedAt,
           status: enrollment.status,
         },
@@ -192,11 +197,53 @@ export const updateLessonProgress = async (req, res) => {
 
     const enrollment = await Enrollment.findOne({ userId, courseId });
     if (!enrollment) {
-      return res
-        .status(403)
-        .json({
-          message: "Bạn chưa đăng ký khóa học này hoặc không có quyền.",
-        });
+      return res.status(403).json({
+        message: "Bạn chưa đăng ký khóa học này hoặc không có quyền.",
+      });
+    }
+
+    const course = await Course.findById(courseId).select(
+      "lessons totalLessons",
+    );
+    if (!course) {
+      return res.status(404).json({ message: "Khóa học không tồn tại" });
+    }
+
+    const lesson = (course.lessons || []).find(
+      (item) => String(item._id) === String(lessonId),
+    );
+    if (!lesson) {
+      return res.status(404).json({ message: "Bài học không tồn tại" });
+    }
+
+    enrollment.completedLessonIds = enrollment.completedLessonIds || [];
+
+    if (markCompleted) {
+      const lessonObjectId = lesson._id;
+      const alreadyCompleted = enrollment.completedLessonIds.some(
+        (completedLessonId) =>
+          String(completedLessonId) === String(lessonObjectId),
+      );
+
+      if (!alreadyCompleted) {
+        enrollment.completedLessonIds.push(lessonObjectId);
+      }
+
+      const totalLessons =
+        course.totalLessons || (course.lessons || []).length || 0;
+      const completedLessons = enrollment.completedLessonIds.length;
+
+      enrollment.progressPercent = totalLessons
+        ? Math.min(100, Math.round((completedLessons / totalLessons) * 100))
+        : 0;
+
+      if (completedLessons >= totalLessons && totalLessons > 0) {
+        enrollment.status = "completed";
+        enrollment.completedAt = new Date();
+      } else {
+        enrollment.status = "active";
+        enrollment.completedAt = undefined;
+      }
     }
 
     if (typeof progressPercent === "number") {
@@ -204,12 +251,6 @@ export const updateLessonProgress = async (req, res) => {
         0,
         Math.min(100, Math.round(progressPercent)),
       );
-    }
-
-    if (markCompleted) {
-      enrollment.status = "completed";
-      enrollment.completedAt = new Date();
-      enrollment.progressPercent = 100;
     }
 
     enrollment.lastAccessedAt = new Date();

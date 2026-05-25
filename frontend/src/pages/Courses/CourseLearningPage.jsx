@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, Navigate, useParams } from "react-router-dom";
+import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import {
   BookOpen,
   CheckCircle2,
@@ -12,6 +12,7 @@ import {
   PlayCircle,
   SkipForward,
 } from "lucide-react";
+import { toast } from "sonner";
 import studentService from "../../services/studentService";
 import { ROUTES } from "../../lib/constants";
 
@@ -24,6 +25,7 @@ const lessonBadgeClass = {
 
 export default function CourseLearningPage() {
   const { courseId, lessonId } = useParams();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [initialLessonId] = useState(lessonId);
@@ -32,6 +34,7 @@ export default function CourseLearningPage() {
   const [courseData, setCourseData] = useState(null);
   const [lessons, setLessons] = useState([]);
   const [enrollment, setEnrollment] = useState(null);
+  const [showCompletionModal, setShowCompletionModal] = useState(false);
 
   // Fetch course + lessons + enrollment once for the given courseId.
   // We use the lesson endpoint because it returns the course and lessons list.
@@ -48,6 +51,10 @@ export default function CourseLearningPage() {
         setCourseData(data.course || null);
         setLessons(data.lessons || []);
         setEnrollment(data.enrollment || null);
+        setShowCompletionModal(
+          data.enrollment?.status === "completed" ||
+            Number(data.enrollment?.progressPercent || 0) >= 100,
+        );
       } catch (err) {
         console.error(err);
         if (!mounted) return;
@@ -92,6 +99,12 @@ export default function CourseLearningPage() {
   );
   const nextLesson = lessons[activeIndex + 1];
   const progress = enrollment?.progressPercent || 0;
+  const completedLessonIds = enrollment?.completedLessonIds || [];
+  const isLessonCompleted = completedLessonIds.some(
+    (completedLessonId) =>
+      String(completedLessonId) ===
+      String(activeLesson?._id || activeLesson?.id),
+  );
 
   const videoSrc = activeLesson?.videoUrl || courseData?.introVideoUrl;
   const isExternalVideo =
@@ -213,23 +226,41 @@ export default function CourseLearningPage() {
                     className="inline-flex items-center gap-2 rounded-xl bg-linear-to-r from-cyan-500 to-emerald-500 px-4 py-2.5 text-sm font-bold text-white transition hover:shadow-lg"
                     onClick={async () => {
                       try {
-                        const newProgress = Math.min(
-                          100,
-                          (enrollment?.progressPercent || 0) + 5,
-                        );
                         const resp = await studentService.updateLessonProgress(
                           courseId,
                           activeLesson._id,
-                          { progressPercent: newProgress },
+                          { markCompleted: true },
                         );
                         setEnrollment(resp.data || resp);
+                        toast.success("Đã hoàn thành bài học");
+                        const updatedEnrollment = resp.data || resp;
+                        const updatedProgress = Number(
+                          updatedEnrollment?.progressPercent || 0,
+                        );
+                        const updatedStatus = updatedEnrollment?.status;
+
+                        if (
+                          updatedStatus === "completed" ||
+                          updatedProgress >= 100 ||
+                          !nextLesson
+                        ) {
+                          setShowCompletionModal(true);
+                          return;
+                        }
+
+                        if (nextLesson) {
+                          navigate(
+                            `/lesson/${courseId}/${nextLesson._id || nextLesson.id}`,
+                          );
+                        }
                       } catch (e) {
                         console.error(e);
+                        toast.error("Không thể cập nhật tiến độ bài học");
                       }
                     }}
                   >
                     <CirclePlay className="h-4 w-4" />
-                    Tiếp tục học
+                    {isLessonCompleted ? "Đã hoàn thành" : "Hoàn thành bài học"}
                   </button>
 
                   {nextLesson ? (
@@ -310,11 +341,23 @@ export default function CourseLearningPage() {
                           <p className="text-sm font-semibold text-slate-900 dark:text-white">
                             {index + 1}. {lesson.title}
                           </p>
-                          <span
-                            className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ${lessonBadgeClass[lesson.type]}`}
-                          >
-                            {lesson.type}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            {completedLessonIds.some(
+                              (completedLessonId) =>
+                                String(completedLessonId) ===
+                                String(lesson._id || lesson.id),
+                            ) ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
+                                <CheckCircle2 className="h-3.5 w-3.5" />
+                                Hoàn thành
+                              </span>
+                            ) : null}
+                            <span
+                              className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ${lessonBadgeClass[lesson.type]}`}
+                            >
+                              {lesson.type}
+                            </span>
+                          </div>
                         </div>
                         <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                           {lesson.duration}
@@ -345,6 +388,40 @@ export default function CourseLearningPage() {
           </section>
         </aside>
       </div>
+
+      {showCompletionModal ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-3xl border border-white/20 bg-white p-6 shadow-2xl dark:border-slate-700 dark:bg-slate-900 sm:p-8">
+            <div className="mx-auto inline-flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-300">
+              <CheckCircle2 className="h-8 w-8" />
+            </div>
+
+            <h2 className="mt-5 text-center text-2xl font-black text-slate-900 dark:text-white">
+              Bạn đã hoàn thành khóa học
+            </h2>
+            <p className="mt-3 text-center text-sm text-slate-600 dark:text-slate-300">
+              Toàn bộ bài học đã được đánh dấu hoàn thành. Bạn có thể quay về
+              khóa học của mình để xem tiến độ và tiếp tục khóa khác.
+            </p>
+
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+              <Link
+                to={ROUTES.STUDENT_DASHBOARD}
+                className="inline-flex flex-1 items-center justify-center rounded-xl bg-linear-to-r from-cyan-500 to-emerald-500 px-4 py-3 text-sm font-bold text-white transition hover:shadow-lg"
+              >
+                Về khóa học của tôi
+              </Link>
+              <button
+                type="button"
+                onClick={() => setShowCompletionModal(false)}
+                className="inline-flex flex-1 items-center justify-center rounded-xl border border-slate-300 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:border-cyan-400 hover:text-cyan-700 dark:border-slate-700 dark:text-slate-300"
+              >
+                Ở lại trang học
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

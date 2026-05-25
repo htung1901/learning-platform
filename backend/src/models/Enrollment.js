@@ -24,6 +24,11 @@ const enrollmentSchema = new mongoose.Schema(
     amount: { type: Number, default: 0 },
     paymentMethod: { type: String },
     progressPercent: { type: Number, default: 0 },
+    completedLessonIds: {
+      type: [mongoose.Schema.Types.ObjectId],
+      ref: "Course.lessons",
+      default: [],
+    },
     lastAccessedAt: { type: Date },
     metadata: { type: Object },
   },
