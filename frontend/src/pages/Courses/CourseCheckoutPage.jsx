@@ -4,6 +4,8 @@ import { CreditCard, ShieldCheck, TicketPercent, Wallet } from "lucide-react";
 import { ROUTES } from "../../lib/constants";
 import courseService from "../../services/courseService";
 import paymentService from "../../services/paymentService";
+import studentService from "../../services/studentService";
+import { useAuthStore } from "../../store/authStore";
 
 const PAYMENT_METHODS = [
   { key: "card", label: "Thẻ ngân hàng", icon: CreditCard },
@@ -24,9 +26,11 @@ export default function CourseCheckoutPage() {
   const { id } = useParams();
   const [course, setCourse] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isOwned, setIsOwned] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("card");
   const [coupon, setCoupon] = useState("");
   const [isPaid, setIsPaid] = useState(false);
+  const { user } = useAuthStore();
 
   useEffect(() => {
     let mounted = true;
@@ -47,8 +51,35 @@ export default function CourseCheckoutPage() {
     return () => (mounted = false);
   }, [id]);
 
+  useEffect(() => {
+    let mounted = true;
+
+    const checkOwnership = async () => {
+      if (!user || user.role === "instructor") return;
+
+      try {
+        const response = await studentService.getMyCourses();
+        if (!mounted) return;
+
+        const owned = (response.data || []).some(
+          (item) => String(item.courseId) === String(id),
+        );
+        setIsOwned(owned);
+      } catch {
+        if (mounted) setIsOwned(false);
+      }
+    };
+
+    checkOwnership();
+
+    return () => {
+      mounted = false;
+    };
+  }, [id, user]);
+
   if (loading) return <div className="p-8">Loading...</div>;
   if (!course) return <Navigate to={ROUTES.COURSES} replace />;
+  if (isOwned) return <Navigate to={ROUTES.STUDENT_DASHBOARD} replace />;
 
   const price = Number(course.price || 0);
   const discount =
@@ -75,7 +106,7 @@ export default function CourseCheckoutPage() {
             <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
               <Link
                 to={ROUTES.ENROLLED_COURSES}
-                className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-5 py-3 text-sm font-bold text-white transition hover:shadow-lg"
+                className="inline-flex items-center justify-center rounded-xl bg-linear-to-r from-cyan-500 to-emerald-500 px-5 py-3 text-sm font-bold text-white transition hover:shadow-lg"
               >
                 Vào học ngay
               </Link>
@@ -235,7 +266,7 @@ export default function CourseCheckoutPage() {
                 alert("Thanh toán thất bại (mô phỏng)");
               }
             }}
-            className="mt-5 inline-flex w-full items-center justify-center rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-4 py-3 text-sm font-bold text-white transition hover:shadow-lg"
+            className="mt-5 inline-flex w-full items-center justify-center rounded-xl bg-linear-to-r from-cyan-500 to-emerald-500 px-4 py-3 text-sm font-bold text-white transition hover:shadow-lg"
           >
             Xác nhận thanh toán
           </button>

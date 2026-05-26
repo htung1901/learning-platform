@@ -17,9 +17,7 @@ export const fakePayment = async (req, res) => {
     // If already enrolled, return existing
     let enrollment = await Enrollment.findOne({ userId: user._id, courseId });
     if (enrollment) {
-      return res
-        .status(200)
-        .json({ message: "Already purchased", data: enrollment });
+      return res.status(409).json({ message: "Bạn đã mua khóa học này rồi" });
     }
 
     enrollment = await Enrollment.create({
@@ -64,7 +62,6 @@ export const fakeCartPayment = async (req, res) => {
 
     for (const item of validItems) {
       const course = item.courseId;
-      totalAmount += Number(course.price || 0);
 
       const existingEnrollment = await Enrollment.findOne({
         userId: user._id,
@@ -75,6 +72,8 @@ export const fakeCartPayment = async (req, res) => {
         skippedCourseIds.push(course._id);
         continue;
       }
+
+      totalAmount += Number(course.price || 0);
 
       await Enrollment.create({
         userId: user._id,

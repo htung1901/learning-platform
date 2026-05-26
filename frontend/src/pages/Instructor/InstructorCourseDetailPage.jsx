@@ -55,6 +55,7 @@ export default function InstructorCourseDetailPage() {
   const manageCoursesPath = "/dashboard/courses/manage";
   const [course, setCourse] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     const fetchCourse = async () => {
@@ -80,6 +81,28 @@ export default function InstructorCourseDetailPage() {
 
   const lessons = useMemo(() => course?.lessons || [], [course]);
   const status = normalizeStatus(course?.status);
+
+  const handleDeleteCourse = async () => {
+    if (!course?._id || isDeleting) return;
+
+    const confirmed = window.confirm(
+      "Bạn có chắc muốn xóa khóa học này không? Hành động này không thể hoàn tác.",
+    );
+    if (!confirmed) return;
+
+    try {
+      setIsDeleting(true);
+      await instructorService.deleteCourse(course._id);
+      toast.success("Đã xóa khóa học");
+      navigate(manageCoursesPath);
+    } catch (error) {
+      if (isAuthenticated) {
+        toast.error(error?.response?.data?.message || "Không thể xóa khóa học");
+      }
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -135,7 +158,7 @@ export default function InstructorCourseDetailPage() {
       </button>
 
       <section className="overflow-hidden rounded-3xl border border-white/10 bg-white/6 shadow-2xl backdrop-blur-xl">
-        <div className="relative h-80 bg-gradient-to-br from-cyan-500/20 via-emerald-500/10 to-violet-500/20">
+        <div className="relative h-80 bg-linear-to-br from-cyan-500/20 via-emerald-500/10 to-violet-500/20">
           {course.thumbnailUrl && (
             <img
               src={course.thumbnailUrl}
@@ -143,7 +166,7 @@ export default function InstructorCourseDetailPage() {
               className="h-full w-full object-cover"
             />
           )}
-          <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent" />
+          <div className="absolute inset-0 bg-linear-to-t from-slate-950 via-transparent" />
           <div className="absolute bottom-0 left-0 right-0 p-8">
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1">
@@ -161,7 +184,7 @@ export default function InstructorCourseDetailPage() {
                   {course.level}
                 </p>
               </div>
-              <div className="flex-shrink-0 text-right">
+              <div className="shrink-0 text-right">
                 <span
                   className={`inline-flex rounded-full px-4 py-2 text-sm font-bold uppercase tracking-[0.18em] ${
                     status === "Đã xuất bản"
@@ -316,10 +339,12 @@ export default function InstructorCourseDetailPage() {
         </button>
         <button
           type="button"
-          className="inline-flex items-center gap-2 rounded-2xl border border-red-300/30 bg-red-400/10 px-5 py-3 text-sm font-semibold text-red-200 transition hover:bg-red-400/20"
+          onClick={handleDeleteCourse}
+          disabled={isDeleting}
+          className="inline-flex items-center gap-2 rounded-2xl border border-red-300/30 bg-red-400/10 px-5 py-3 text-sm font-semibold text-red-200 transition hover:bg-red-400/20 disabled:cursor-not-allowed disabled:opacity-60"
         >
           <Trash2 className="h-4 w-4" />
-          Xóa
+          {isDeleting ? "Đang xóa..." : "Xóa"}
         </button>
       </div>
     </div>

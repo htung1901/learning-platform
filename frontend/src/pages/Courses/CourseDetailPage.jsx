@@ -13,12 +13,16 @@ import cartService from "../../services/cartService";
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from "../../lib/constants";
 import { useEffect, useState } from "react";
+import { useAuthStore } from "../../store/authStore";
+import studentService from "../../services/studentService";
 
 export default function CourseDetailPage() {
   const { id } = useParams();
   const [course, setCourse] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isOwned, setIsOwned] = useState(false);
   const navigate = useNavigate();
+  const { user } = useAuthStore();
 
   useEffect(() => {
     let mounted = true;
@@ -43,6 +47,32 @@ export default function CourseDetailPage() {
     };
   }, [id]);
 
+  useEffect(() => {
+    let mounted = true;
+
+    const checkOwnership = async () => {
+      if (!user || user.role === "instructor") return;
+
+      try {
+        const response = await studentService.getMyCourses();
+        if (!mounted) return;
+
+        const owned = (response.data || []).some(
+          (item) => String(item.courseId) === String(id),
+        );
+        setIsOwned(owned);
+      } catch {
+        if (mounted) setIsOwned(false);
+      }
+    };
+
+    checkOwnership();
+
+    return () => {
+      mounted = false;
+    };
+  }, [id, user]);
+
   if (loading) return <div className="p-8">Loading...</div>;
   if (!course) return <Navigate to={ROUTES.COURSES} replace />;
 
@@ -54,6 +84,7 @@ export default function CourseDetailPage() {
   };
 
   const outcomes = course?.outcomes || course?.prerequisites || [];
+  const firstLessonId = course?.lessons?.[0]?._id;
 
   return (
     <div className="relative overflow-hidden py-10 sm:py-14">
@@ -121,34 +152,56 @@ export default function CourseDetailPage() {
                   {course.price}
                 </p>
                 <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-                  Bạn chưa sở hữu khóa học này. Mua ngay để mở toàn bộ nội dung.
+                  {isOwned
+                    ? "Bạn đã sở hữu khóa học này. Vào học tiếp ngay hoặc xem tiến độ trong dashboard."
+                    : "Bạn chưa sở hữu khóa học này. Mua ngay để mở toàn bộ nội dung."}
                 </p>
 
-                <div className="mt-4 grid grid-cols-[auto_1fr] gap-3">
-                  <button
-                    onClick={async () => {
-                      try {
-                        await cartService.addToCart(course._id);
-                        navigate(ROUTES.CART);
-                      } catch (err) {
-                        console.error("Add to cart failed", err);
-                        // still navigate to cart to show current state
-                        navigate(ROUTES.CART);
+                {isOwned ? (
+                  <div className="mt-4 grid gap-3">
+                    <Link
+                      to={
+                        firstLessonId
+                          ? `/lesson/${course._id}/${firstLessonId}`
+                          : ROUTES.STUDENT_DASHBOARD
                       }
-                    }}
-                    className="inline-flex h-12 w-12 items-center justify-center rounded-xl border border-cyan-200 bg-cyan-50 text-cyan-700 transition hover:border-cyan-300 hover:bg-cyan-100 dark:border-cyan-900/40 dark:bg-cyan-900/20 dark:text-cyan-300"
-                    title="Thêm vào giỏ"
-                  >
-                    <ShoppingCart className="h-5 w-5" />
-                  </button>
+                      className="inline-flex w-full items-center justify-center rounded-xl bg-linear-to-r from-cyan-500 to-emerald-500 px-4 py-3 text-sm font-bold text-white transition hover:shadow-lg"
+                    >
+                      Vào học ngay
+                    </Link>
+                    <Link
+                      to={ROUTES.STUDENT_DASHBOARD}
+                      className="inline-flex w-full items-center justify-center rounded-xl border border-slate-300 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:border-cyan-400 hover:text-cyan-700 dark:border-slate-700 dark:text-slate-300"
+                    >
+                      Về dashboard của tôi
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="mt-4 grid grid-cols-[auto_1fr] gap-3">
+                    <button
+                      onClick={async () => {
+                        try {
+                          await cartService.addToCart(course._id);
+                          navigate(ROUTES.CART);
+                        } catch (err) {
+                          console.error("Add to cart failed", err);
+                          navigate(ROUTES.CART);
+                        }
+                      }}
+                      className="inline-flex h-12 w-12 items-center justify-center rounded-xl border border-cyan-200 bg-cyan-50 text-cyan-700 transition hover:border-cyan-300 hover:bg-cyan-100 dark:border-cyan-900/40 dark:bg-cyan-900/20 dark:text-cyan-300"
+                      title="Thêm vào giỏ"
+                    >
+                      <ShoppingCart className="h-5 w-5" />
+                    </button>
 
-                  <Link
-                    to={`/checkout/${course._id}`}
-                    className="inline-flex w-full items-center justify-center rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-4 py-3 text-sm font-bold text-white transition hover:shadow-lg"
-                  >
-                    Mua khóa học ngay
-                  </Link>
-                </div>
+                    <Link
+                      to={`/checkout/${course._id}`}
+                      className="inline-flex w-full items-center justify-center rounded-xl bg-linear-to-r from-cyan-500 to-emerald-500 px-4 py-3 text-sm font-bold text-white transition hover:shadow-lg"
+                    >
+                      Mua khóa học ngay
+                    </Link>
+                  </div>
+                )}
 
                 <Link
                   to={ROUTES.COURSES}

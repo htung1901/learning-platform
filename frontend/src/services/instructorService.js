@@ -37,6 +37,13 @@ export const instructorService = {
     return res.data.course;
   },
 
+  deleteCourse: async (courseId) => {
+    const res = await api.delete(
+      `${API_ENDPOINTS.INSTRUCTOR_COURSES}/${courseId}`,
+    );
+    return res.data;
+  },
+
   createLesson: async (courseId, payload) => {
     const res = await api.post(
       `${API_ENDPOINTS.INSTRUCTOR_COURSES}/${courseId}/lessons`,

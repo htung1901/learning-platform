@@ -1,4 +1,6 @@
 import Course from "../models/Course.js";
+import CartItem from "../models/CartItem.js";
+import Enrollment from "../models/Enrollment.js";
 
 const slugify = (value) =>
   value
@@ -412,6 +414,35 @@ export const deleteLesson = async (req, res) => {
     return res.status(200).json({ message: "Xóa bài học thành công" });
   } catch (error) {
     console.error("Lỗi khi xóa bài học", error);
+    return res.status(500).json({ message: "Lỗi hệ thống" });
+  }
+};
+
+export const deleteMyCourse = async (req, res) => {
+  try {
+    const { courseId } = req.params;
+    const user = req.user;
+    const ownershipQuery = getCourseOwnershipQuery(
+      courseId,
+      user._id,
+      user.role,
+    );
+
+    const course = await Course.findOne(ownershipQuery);
+    if (!course) {
+      return res.status(404).json({ message: "Không tìm thấy khóa học" });
+    }
+
+    await Promise.all([
+      CartItem.deleteMany({ courseId: course._id }),
+      Enrollment.deleteMany({ courseId: course._id }),
+    ]);
+
+    await course.deleteOne();
+
+    return res.status(200).json({ message: "Xóa khóa học thành công" });
+  } catch (error) {
+    console.error("Lỗi khi xóa khóa học", error);
     return res.status(500).json({ message: "Lỗi hệ thống" });
   }
 };

@@ -1,5 +1,6 @@
 import CartItem from "../models/CartItem.js";
 import Course from "../models/Course.js";
+import Enrollment from "../models/Enrollment.js";
 
 export const getCart = async (req, res) => {
   try {
@@ -39,6 +40,11 @@ export const addToCart = async (req, res) => {
     const course = await Course.findById(courseId);
     if (!course || course.status !== "published") {
       return res.status(404).json({ message: "Khóa học không tồn tại" });
+    }
+
+    const existingEnrollment = await Enrollment.findOne({ userId, courseId });
+    if (existingEnrollment) {
+      return res.status(409).json({ message: "Bạn đã mua khóa học này rồi" });
     }
 
     try {

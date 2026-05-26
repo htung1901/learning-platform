@@ -55,6 +55,29 @@ const APPROVED_COURSES = [
   },
 ];
 
+const formatDurationLabel = (totalSeconds = 0) => {
+  const secondsValue = Math.max(0, Number(totalSeconds) || 0);
+  const hours = Math.floor(secondsValue / 3600);
+  const minutes = Math.floor((secondsValue % 3600) / 60);
+  const seconds = secondsValue % 60;
+
+  if (hours > 0) {
+    return `${hours}h ${minutes}m${seconds > 0 ? ` ${seconds}s` : ""}`;
+  }
+
+  if (minutes > 0) {
+    return seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes}m`;
+  }
+
+  return `${seconds}s`;
+};
+
+const getLessonDurationSeconds = (lesson) => {
+  const minutes = Math.max(0, Number(lesson.durationMinutes) || 0);
+  const seconds = Math.max(0, Number(lesson.durationSeconds) || 0);
+  return minutes * 60 + seconds;
+};
+
 export default function InstructorCreateCoursePage() {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuthStore();
@@ -76,7 +99,8 @@ export default function InstructorCreateCoursePage() {
       id: 1,
       title: "",
       videoUrl: "",
-      duration: "",
+      durationMinutes: "",
+      durationSeconds: "",
       type: "Video",
       summary: "",
     },
@@ -129,6 +153,14 @@ export default function InstructorCreateCoursePage() {
 
     return thumbnailUrl.trim() || undefined;
   };
+
+  const calculateTotalDuration = () =>
+    formatDurationLabel(
+      lessons.reduce(
+        (sum, lesson) => sum + getLessonDurationSeconds(lesson),
+        0,
+      ),
+    );
 
   const buildCoursePayload = (status = "draft") => ({
     title: courseTitle.trim(),
@@ -197,7 +229,8 @@ export default function InstructorCreateCoursePage() {
         id: Date.now(),
         title: "",
         videoUrl: "",
-        duration: "",
+        durationMinutes: "",
+        durationSeconds: "",
         type: "Video",
         summary: "",
       },
@@ -209,41 +242,6 @@ export default function InstructorCreateCoursePage() {
       if (prevLessons.length === 1) return prevLessons;
       return prevLessons.filter((lesson) => lesson.id !== lessonId);
     });
-  };
-
-  const calculateTotalDuration = () => {
-    const totalSeconds = lessons.reduce((sum, lesson) => {
-      if (!lesson.duration) return sum;
-
-      const parts = lesson.duration.split(":").map((part) => Number(part));
-      if (parts.some((part) => Number.isNaN(part))) return sum;
-
-      if (parts.length === 2) {
-        const [minutes, seconds] = parts;
-        return sum + minutes * 60 + seconds;
-      }
-
-      if (parts.length === 3) {
-        const [hours, minutes, seconds] = parts;
-        return sum + hours * 3600 + minutes * 60 + seconds;
-      }
-
-      return sum;
-    }, 0);
-
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
-
-    if (hours > 0) {
-      return `${hours}h ${minutes}m${seconds > 0 ? ` ${seconds}s` : ""}`;
-    }
-
-    if (minutes > 0) {
-      return seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes}m`;
-    }
-
-    return `${seconds}s`;
   };
 
   const handleSubmitForReview = async () => {
@@ -308,16 +306,7 @@ export default function InstructorCreateCoursePage() {
         const payload = {
           title: lesson.title,
           videoUrl: lesson.videoUrl,
-          duration: (() => {
-            if (!lesson.duration) return 0;
-            if (String(lesson.duration).includes(":")) {
-              const parts = String(lesson.duration).split(":").map(Number);
-              if (parts.length === 2) return parts[0] * 60 + parts[1];
-              if (parts.length === 3)
-                return parts[0] * 3600 + parts[1] * 60 + parts[2];
-            }
-            return Number(lesson.duration) || 0;
-          })(),
+          duration: getLessonDurationSeconds(lesson),
           summary: lesson.summary,
           resources: lesson.resources || [],
         };
@@ -498,6 +487,20 @@ export default function InstructorCreateCoursePage() {
                       value={introVideoUrl}
                       onChange={(event) => setIntroVideoUrl(event.target.value)}
                     />
+                  </label>
+
+                  <label className="space-y-2 md:col-span-2">
+                    <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                      Tổng thời lượng khóa học
+                    </span>
+                    <input
+                      className={`${fieldClassName} cursor-default bg-slate-50 dark:bg-slate-800`}
+                      value={calculateTotalDuration()}
+                      readOnly
+                    />
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      Tự động cộng từ tổng thời lượng của tất cả bài học.
+                    </p>
                   </label>
                 </div>
               </article>
@@ -770,18 +773,47 @@ export default function InstructorCreateCoursePage() {
                         <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
                           Thời lượng
                         </span>
-                        <input
-                          className={fieldClassName}
-                          placeholder="VD: 12:30"
-                          value={lesson.duration}
-                          onChange={(event) =>
-                            handleLessonChange(
-                              lesson.id,
-                              "duration",
-                              event.target.value,
-                            )
-                          }
-                        />
+                        <div className="grid grid-cols-2 gap-3">
+                          <label className="space-y-2">
+                            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                              Phút
+                            </span>
+                            <input
+                              type="number"
+                              min="0"
+                              className={fieldClassName}
+                              placeholder="12"
+                              value={lesson.durationMinutes}
+                              onChange={(event) =>
+                                handleLessonChange(
+                                  lesson.id,
+                                  "durationMinutes",
+                                  event.target.value,
+                                )
+                              }
+                            />
+                          </label>
+                          <label className="space-y-2">
+                            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                              Giây
+                            </span>
+                            <input
+                              type="number"
+                              min="0"
+                              max="59"
+                              className={fieldClassName}
+                              placeholder="30"
+                              value={lesson.durationSeconds}
+                              onChange={(event) =>
+                                handleLessonChange(
+                                  lesson.id,
+                                  "durationSeconds",
+                                  event.target.value,
+                                )
+                              }
+                            />
+                          </label>
+                        </div>
                       </label>
 
                       <label className="space-y-2">
@@ -906,6 +938,14 @@ export default function InstructorCreateCoursePage() {
                 {courseDescription ||
                   "Mô tả ngắn, cấp độ và thông tin giá bán."}
               </p>
+              <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/70">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                  Tổng thời lượng khóa học
+                </p>
+                <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">
+                  {calculateTotalDuration()}
+                </p>
+              </div>
             </div>
           </article>
 

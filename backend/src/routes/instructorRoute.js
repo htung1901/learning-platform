@@ -10,6 +10,7 @@ import {
   createLesson,
   updateLesson,
   deleteLesson,
+  deleteMyCourse,
 } from "../controllers/instructorController.js";
 import {
   createCourseValidator,
@@ -29,5 +30,6 @@ router.post("/courses/:courseId/submit", submitCourseForReview);
 router.post("/courses/:courseId/lessons", createLesson);
 router.patch("/courses/:courseId/lessons/:lessonId", updateLesson);
 router.delete("/courses/:courseId/lessons/:lessonId", deleteLesson);
+router.delete("/courses/:courseId", deleteMyCourse);
 
 export default router;

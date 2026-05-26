@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { ShoppingCart } from "lucide-react";
+import { toast } from "sonner";
 import studentService from "../../services/studentService";
 import { ROUTES } from "../../lib/constants";
 import { useAuthStore } from "../../store/authStore";
-import { ShoppingCart, CheckCircle2 } from "lucide-react";
-import { toast } from "sonner";
 
 export default function AvailableCourses() {
   const navigate = useNavigate();
@@ -21,22 +21,39 @@ export default function AvailableCourses() {
       return;
     }
 
+    let mounted = true;
     const fetch = async () => {
       setLoading(true);
       try {
-        const data = await studentService.getAvailableCourses(page, 12);
-        setCourses(data.data);
-        setPagination(data.pagination);
+        const [availableData, ownedData] = await Promise.all([
+          studentService.getAvailableCourses(page, 12),
+          studentService.getMyCourses(),
+        ]);
+
+        if (!mounted) return;
+
+        const ownedIds = new Set(
+          (ownedData.data || []).map((item) => String(item.courseId)),
+        );
+        const filteredCourses = (availableData.data || []).filter(
+          (course) => !ownedIds.has(String(course._id)),
+        );
+
+        setCourses(filteredCourses);
+        setPagination(availableData.pagination);
       } catch (error) {
         if (isAuthenticated) {
           toast.error(error?.response?.data?.message || "Lỗi khi lấy dữ liệu");
         }
       } finally {
-        setLoading(false);
+        if (mounted) setLoading(false);
       }
     };
 
     fetch();
+    return () => {
+      mounted = false;
+    };
   }, [user, page, navigate, isAuthenticated]);
 
   if (loading) {
@@ -44,11 +61,11 @@ export default function AvailableCourses() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto py-8 px-4">
-      <h1 className="text-2xl font-bold mb-4">Khóa học chưa mua</h1>
+    <div className="max-w-6xl mx-auto px-4 py-8">
+      <h1 className="mb-4 text-2xl font-bold">Khóa học chưa mua</h1>
 
       {courses.length === 0 ? (
-        <div className="text-center py-16">
+        <div className="py-16 text-center">
           Không có khóa học mới để hiển thị
         </div>
       ) : (
@@ -59,11 +76,11 @@ export default function AvailableCourses() {
                 <img
                   src={course.thumbnailUrl || "/placeholder.png"}
                   alt={course.title}
-                  className="h-24 w-36 object-cover rounded"
+                  className="h-24 w-36 rounded object-cover"
                 />
                 <div className="flex-1">
-                  <h3 className="font-semibold text-lg">{course.title}</h3>
-                  <p className="text-sm text-slate-500 mt-1 line-clamp-3">
+                  <h3 className="text-lg font-semibold">{course.title}</h3>
+                  <p className="mt-1 line-clamp-3 text-sm text-slate-500">
                     {course.description}
                   </p>
                   <div className="mt-3 flex items-center justify-between">
@@ -73,12 +90,12 @@ export default function AvailableCourses() {
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => navigate(`/courses/${course._id}`)}
-                        className="px-3 py-1 rounded bg-cyan-500 text-white text-sm"
+                        className="rounded bg-cyan-500 px-3 py-1 text-sm text-white"
                       >
                         Xem chi tiết
                       </button>
-                      <div className="text-sm text-slate-600 flex items-center gap-1">
-                        <ShoppingCart className="w-4 h-4" /> Chưa mua
+                      <div className="flex items-center gap-1 text-sm text-slate-600">
+                        <ShoppingCart className="h-4 w-4" /> Chưa mua
                       </div>
                     </div>
                   </div>
@@ -90,12 +107,12 @@ export default function AvailableCourses() {
       )}
 
       {pagination && pagination.pages > 1 && (
-        <div className="flex justify-center gap-2 mt-6">
+        <div className="mt-6 flex justify-center gap-2">
           {Array.from({ length: pagination.pages }).map((_, i) => (
             <button
               key={i}
               onClick={() => setPage(i + 1)}
-              className={`px-3 py-1 rounded ${pagination.page === i + 1 ? "bg-purple-600 text-white" : "bg-white border"}`}
+              className={`rounded px-3 py-1 ${pagination.page === i + 1 ? "bg-purple-600 text-white" : "border bg-white"}`}
             >
               {i + 1}
             </button>
