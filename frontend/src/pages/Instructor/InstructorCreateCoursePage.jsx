@@ -245,11 +245,6 @@ export default function InstructorCreateCoursePage() {
   };
 
   const handleSubmitForReview = async () => {
-    if (!savedCourseId) {
-      toast.error("Vui lòng lưu danh sách bài học trước khi gửi duyệt");
-      return;
-    }
-
     if (!hasSavedLessons) {
       toast.error("Khóa học cần có ít nhất một bài học trước khi gửi duyệt");
       return;
@@ -257,7 +252,13 @@ export default function InstructorCreateCoursePage() {
 
     try {
       setIsSaving(true);
-      await instructorService.submitCourseForReview(savedCourseId);
+
+      // Ensure latest fields (thumbnail, title, etc.) are persisted before submit
+      const course = await persistDraftCourse();
+      if (!course) return;
+      const courseId = course?._id || course?.id || savedCourseId;
+
+      await instructorService.submitCourseForReview(courseId);
       toast.success("Đã gửi khóa học lên chờ duyệt");
       navigate("/dashboard/courses/manage");
     } catch (error) {

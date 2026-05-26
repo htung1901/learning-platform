@@ -10,6 +10,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import courseService from "../../services/courseService";
+import studentService from "../../services/studentService";
 import { useAuthStore } from "../../store/authStore";
 import { ROUTES } from "../../lib/constants";
 
@@ -41,16 +42,36 @@ export default function CoursesPage() {
     const fetch = async () => {
       setLoading(true);
       try {
-        const data = await courseService.getPublishedCourses({
+        const params = {
           page: currentPage,
           limit: coursesPerPage,
           q: query,
           category: category === "Tất cả" ? undefined : category,
           level: level === "All" ? undefined : level,
-        });
+        };
+
+        // Fetch published courses and (if logged in) owned courses in parallel
+        const [publishedRes, ownedRes] = await Promise.all([
+          courseService.getPublishedCourses(params),
+          user && user.role !== "instructor"
+            ? studentService.getMyCourses()
+            : Promise.resolve(null),
+        ]);
+
         if (!mounted) return;
-        setCourses(data.data || []);
-        setPagination(data.pagination || null);
+        const published = publishedRes?.data || [];
+        const ownedIds = new Set(
+          (ownedRes?.data || []).map((item) => String(item.courseId)),
+        );
+
+        // attach isOwned flag and keep existing fields
+        const annotated = published.map((c) => ({
+          ...c,
+          isOwned: ownedIds.has(String(c._id)),
+        }));
+
+        setCourses(annotated);
+        setPagination(publishedRes?.pagination || null);
       } catch {
         // swallow for now
       } finally {
@@ -64,6 +85,24 @@ export default function CoursesPage() {
       mounted = false;
     };
   }, [currentPage, query, category, level]);
+
+  const formatDurationHuman = (seconds = 0) => {
+    const total = Math.max(0, Number(seconds) || 0);
+    if (!total) return "-";
+
+    const days = Math.floor(total / 86400);
+    const hours = Math.floor((total % 86400) / 3600);
+    const minutes = Math.floor((total % 3600) / 60);
+    const secs = total % 60;
+
+    const parts = [];
+    if (days > 0) parts.push(`${days} ngày`);
+    if (hours > 0) parts.push(`${hours} giờ`);
+    if (minutes > 0) parts.push(`${minutes} phút`);
+    if (secs > 0) parts.push(`${secs} giây`);
+
+    return parts.join(" ");
+  };
 
   const visiblePageNumbers = useMemo(() => {
     const pageNumbers = [];
@@ -205,21 +244,25 @@ export default function CoursesPage() {
                           {course.category}
                         </span>
                         <span
-                          className={`absolute right-3 top-3 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold backdrop-blur bg-cyan-500/90 text-white`}
+                          className={`absolute right-3 top-3 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold backdrop-blur text-white ${
+                            course.isOwned
+                              ? "bg-emerald-500/90"
+                              : "bg-cyan-500/90"
+                          }`}
                         >
-                          {course.price}
+                          {course.isOwned ? "Đã sở hữu" : "Chưa mua"}
                         </span>
                       </div>
 
                       <div className="p-5">
-                        <h3 className="line-clamp-2 min-h-[3.5rem] text-lg font-bold text-slate-900 dark:text-white">
+                        <h3 className="line-clamp-2 min-h-14 text-lg font-bold text-slate-900 dark:text-white">
                           {course.title}
                         </h3>
 
                         <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
                           <span className="inline-flex items-center gap-1">
                             <Clock3 className="h-3.5 w-3.5" />
-                            {course.totalDuration || "-"}
+                            {formatDurationHuman(course.totalDuration)}
                           </span>
                           <span className="inline-flex items-center gap-1">
                             <Users className="h-3.5 w-3.5" />
@@ -254,7 +297,7 @@ export default function CoursesPage() {
 
                             <Link
                               to={`/courses/${course._id}`}
-                              className="inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-cyan-500 to-emerald-500 px-4 py-2 text-sm font-semibold text-white transition hover:shadow-lg"
+                              className="inline-flex items-center justify-center rounded-lg bg-linear-to-r from-cyan-500 to-emerald-500 px-4 py-2 text-sm font-semibold text-white transition hover:shadow-lg"
                             >
                               Xem chi tiết
                             </Link>
