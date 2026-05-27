@@ -62,6 +62,18 @@ const lessonSchema = new mongoose.Schema(
     summary: { type: String },
     order: { type: Number, default: 0 },
     resources: { type: [String], default: [] },
+    attachments: {
+      type: [
+        {
+          url: { type: String },
+          publicId: { type: String },
+          fileName: { type: String },
+          mimeType: { type: String },
+          size: { type: Number },
+        },
+      ],
+      default: [],
+    },
   },
   { _id: true, timestamps: true },
 );

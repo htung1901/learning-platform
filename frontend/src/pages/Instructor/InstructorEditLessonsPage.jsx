@@ -50,21 +50,6 @@ const APPROVED_COURSES = [
   },
 ];
 
-const formatDuration = (durationInSeconds = 0) => {
-  const totalSeconds = Number(durationInSeconds) || 0;
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-
-  if (hours > 0) {
-    return `${hours}:${String(minutes).padStart(2, "0")}:${String(
-      seconds,
-    ).padStart(2, "0")}`;
-  }
-
-  return `${minutes}:${String(seconds).padStart(2, "0")}`;
-};
-
 const parseDuration = (value) => {
   if (!value) return 0;
 
@@ -147,27 +132,40 @@ export default function InstructorEditLessonsPage() {
         );
         setLessons(
           (data.lessons || []).length > 0
-            ? data.lessons.map((lesson, index) => ({
-                _id: lesson._id,
-                id: lesson._id || `lesson-${index + 1}`,
-                title: lesson.title || "",
-                videoUrl: lesson.videoUrl || "",
-                duration: formatDuration(lesson.duration || 0),
-                summary: lesson.summary || "",
-                type: "Video",
-                order: lesson.order || index + 1,
-                resources: lesson.resources || [],
-              }))
+            ? data.lessons.map((lesson, index) => {
+                const total = Number(lesson.duration) || 0;
+                const hours = Math.floor(total / 3600);
+                const minutes = Math.floor((total % 3600) / 60);
+                const seconds = total % 60;
+
+                return {
+                  _id: lesson._id,
+                  id: lesson._id || `lesson-${index + 1}`,
+                  title: lesson.title || "",
+                  videoUrl: lesson.videoUrl || "",
+                  durationHours: String(hours),
+                  durationMinutes: String(minutes),
+                  durationSeconds: String(seconds),
+                  summary: lesson.summary || "",
+                  type: "Video",
+                  order: lesson.order || index + 1,
+                  resources: lesson.resources || [],
+                  attachments: lesson.attachments || [],
+                };
+              })
             : [
                 {
                   id: `lesson-${Date.now()}`,
                   title: "",
                   videoUrl: "",
-                  duration: "",
+                  durationHours: "",
+                  durationMinutes: "",
+                  durationSeconds: "",
                   summary: "",
                   type: "Video",
                   order: 1,
                   resources: [],
+                  attachments: [],
                 },
               ],
         );
@@ -232,6 +230,26 @@ export default function InstructorEditLessonsPage() {
     );
   };
 
+  const handleLessonAttachmentUpload = async (lessonId, file) => {
+    try {
+      const lesson = lessons.find((l) => l.id === lessonId);
+      if (!lesson) return;
+
+      // optimistic: show uploading indicator on lesson
+      handleLessonChange(lessonId, "isUploading", true);
+
+      const attachment = await instructorService.uploadLessonAttachment(file);
+
+      const newAttachments = [...(lesson.attachments || []), attachment];
+      handleLessonChange(lessonId, "attachments", newAttachments);
+      toast.success("Tệp đính kèm đã tải lên");
+    } catch (error) {
+      toast.error(error?.response?.data?.message || "Không thể tải lên tệp");
+    } finally {
+      handleLessonChange(lessonId, "isUploading", false);
+    }
+  };
+
   const handleAddLesson = () => {
     setLessons((prevLessons) => [
       ...prevLessons,
@@ -239,11 +257,14 @@ export default function InstructorEditLessonsPage() {
         id: `lesson-${Date.now()}`,
         title: "",
         videoUrl: "",
-        duration: "",
+        durationHours: "",
+        durationMinutes: "",
+        durationSeconds: "",
         summary: "",
         type: "Video",
         order: prevLessons.length + 1,
         resources: [],
+        attachments: [],
       },
     ]);
   };
@@ -263,10 +284,21 @@ export default function InstructorEditLessonsPage() {
   };
 
   const calculateTotalDuration = () => {
-    const totalSeconds = lessons.reduce(
-      (sum, lesson) => sum + parseDuration(lesson.duration),
-      0,
-    );
+    const totalSeconds = lessons.reduce((sum, lesson) => {
+      const hasParts =
+        lesson.durationHours !== undefined ||
+        lesson.durationMinutes !== undefined ||
+        lesson.durationSeconds !== undefined;
+
+      if (hasParts) {
+        const h = Math.max(0, Number(lesson.durationHours) || 0);
+        const m = Math.max(0, Number(lesson.durationMinutes) || 0);
+        const s = Math.max(0, Number(lesson.durationSeconds) || 0);
+        return sum + h * 3600 + m * 60 + s;
+      }
+
+      return sum + parseDuration(lesson.duration);
+    }, 0);
 
     const hours = Math.floor(totalSeconds / 3600);
     const minutes = Math.floor((totalSeconds % 3600) / 60);
@@ -319,12 +351,24 @@ export default function InstructorEditLessonsPage() {
       }
 
       for (const [index, lesson] of lessons.entries()) {
+        const hasParts =
+          lesson.durationHours !== undefined ||
+          lesson.durationMinutes !== undefined ||
+          lesson.durationSeconds !== undefined;
+
+        const durationSeconds = hasParts
+          ? Math.max(0, Number(lesson.durationHours) || 0) * 3600 +
+            Math.max(0, Number(lesson.durationMinutes) || 0) * 60 +
+            Math.max(0, Number(lesson.durationSeconds) || 0)
+          : parseDuration(lesson.duration);
+
         const payload = {
           title: lesson.title,
           videoUrl: lesson.videoUrl,
-          duration: parseDuration(lesson.duration),
+          duration: durationSeconds,
           summary: lesson.summary,
           resources: lesson.resources || [],
+          attachments: lesson.attachments || [],
           order: index + 1,
         };
 
@@ -729,35 +773,129 @@ export default function InstructorEditLessonsPage() {
                 <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
                   Thời lượng
                 </span>
-                <input
-                  className={fieldClassName}
-                  placeholder="VD: 12:30"
-                  value={lesson.duration}
-                  onChange={(event) =>
-                    handleLessonChange(
-                      lesson.id,
-                      "duration",
-                      event.target.value,
-                    )
-                  }
-                />
+                <div className="grid grid-cols-3 gap-3">
+                  <label className="space-y-2">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                      Tiếng
+                    </span>
+                    <input
+                      type="number"
+                      min="0"
+                      className={fieldClassName}
+                      placeholder="0"
+                      value={lesson.durationHours}
+                      onChange={(event) =>
+                        handleLessonChange(
+                          lesson.id,
+                          "durationHours",
+                          event.target.value,
+                        )
+                      }
+                    />
+                  </label>
+
+                  <label className="space-y-2">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                      Phút
+                    </span>
+                    <input
+                      type="number"
+                      min="0"
+                      className={fieldClassName}
+                      placeholder="12"
+                      value={lesson.durationMinutes}
+                      onChange={(event) =>
+                        handleLessonChange(
+                          lesson.id,
+                          "durationMinutes",
+                          event.target.value,
+                        )
+                      }
+                    />
+                  </label>
+
+                  <label className="space-y-2">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                      Giây
+                    </span>
+                    <input
+                      type="number"
+                      min="0"
+                      max="59"
+                      className={fieldClassName}
+                      placeholder="30"
+                      value={lesson.durationSeconds}
+                      onChange={(event) =>
+                        handleLessonChange(
+                          lesson.id,
+                          "durationSeconds",
+                          event.target.value,
+                        )
+                      }
+                    />
+                  </label>
+                </div>
               </label>
 
-              <label className="space-y-2">
+              <label className="space-y-2 md:col-span-2">
                 <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                  Loại bài học
+                  Tài liệu đính kèm
                 </span>
-                <select
-                  className={fieldClassName}
-                  value={lesson.type}
-                  onChange={(event) =>
-                    handleLessonChange(lesson.id, "type", event.target.value)
-                  }
-                >
-                  <option>Video</option>
-                  <option>Practice</option>
-                  <option>Quiz</option>
-                </select>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                  <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-cyan-300 bg-cyan-50 px-3 py-2 text-sm font-semibold text-cyan-700 transition hover:bg-cyan-100 dark:border-cyan-700/40 dark:bg-cyan-900/20 dark:text-cyan-300">
+                    <FileText className="h-4 w-4" />
+                    Chọn tệp
+                    <input
+                      type="file"
+                      accept=".pdf,.doc,.docx,.zip"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleLessonAttachmentUpload(lesson.id, file);
+                        e.target.value = "";
+                      }}
+                    />
+                  </label>
+
+                  <div className="text-sm text-slate-600 dark:text-slate-400">
+                    {(lesson.attachments || []).length > 0 ? (
+                      <ul className="space-y-1">
+                        {(lesson.attachments || []).map((att, aIdx) => (
+                          <li key={aIdx} className="flex items-center gap-2">
+                            <a
+                              href={att.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-cyan-700 underline dark:text-cyan-300"
+                            >
+                              {att.fileName || "Tệp đính kèm"}
+                            </a>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const newList = (
+                                  lesson.attachments || []
+                                ).filter((_, i) => i !== aIdx);
+                                handleLessonChange(
+                                  lesson.id,
+                                  "attachments",
+                                  newList,
+                                );
+                              }}
+                              className="ml-2 rounded-lg p-1 text-slate-600 transition hover:bg-red-100 hover:text-red-600 dark:text-slate-400 dark:hover:bg-red-900/20"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        Chỉ hỗ trợ pdf, docx, zip
+                      </p>
+                    )}
+                  </div>
+                </div>
               </label>
 
               <label className="space-y-2 md:col-span-2">

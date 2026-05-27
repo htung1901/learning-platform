@@ -73,9 +73,10 @@ const formatDurationLabel = (totalSeconds = 0) => {
 };
 
 const getLessonDurationSeconds = (lesson) => {
+  const hours = Math.max(0, Number(lesson.durationHours) || 0);
   const minutes = Math.max(0, Number(lesson.durationMinutes) || 0);
   const seconds = Math.max(0, Number(lesson.durationSeconds) || 0);
-  return minutes * 60 + seconds;
+  return hours * 3600 + minutes * 60 + seconds;
 };
 
 export default function InstructorCreateCoursePage() {
@@ -99,10 +100,12 @@ export default function InstructorCreateCoursePage() {
       id: 1,
       title: "",
       videoUrl: "",
+      durationHours: "",
       durationMinutes: "",
       durationSeconds: "",
       type: "Video",
       summary: "",
+      attachments: [],
     },
   ]);
   const [hasPrerequisites, setHasPrerequisites] = useState(false);
@@ -222,6 +225,23 @@ export default function InstructorCreateCoursePage() {
     );
   };
 
+  const handleLessonAttachmentUpload = async (lessonId, file) => {
+    try {
+      const lesson = lessons.find((l) => l.id === lessonId);
+      if (!lesson) return;
+
+      handleLessonChange(lessonId, "isUploading", true);
+      const attachment = await instructorService.uploadLessonAttachment(file);
+      const newAttachments = [...(lesson.attachments || []), attachment];
+      handleLessonChange(lessonId, "attachments", newAttachments);
+      toast.success("Tệp đính kèm đã tải lên");
+    } catch (error) {
+      toast.error(error?.response?.data?.message || "Không thể tải lên tệp");
+    } finally {
+      handleLessonChange(lessonId, "isUploading", false);
+    }
+  };
+
   const handleAddLesson = () => {
     setLessons((prevLessons) => [
       ...prevLessons,
@@ -229,10 +249,12 @@ export default function InstructorCreateCoursePage() {
         id: Date.now(),
         title: "",
         videoUrl: "",
+        durationHours: "",
         durationMinutes: "",
         durationSeconds: "",
         type: "Video",
         summary: "",
+        attachments: [],
       },
     ]);
   };
@@ -310,6 +332,7 @@ export default function InstructorCreateCoursePage() {
           duration: getLessonDurationSeconds(lesson),
           summary: lesson.summary,
           resources: lesson.resources || [],
+          attachments: lesson.attachments || [],
         };
 
         await instructorService.createLesson(courseId, payload);
@@ -499,6 +522,9 @@ export default function InstructorCreateCoursePage() {
                       value={calculateTotalDuration()}
                       readOnly
                     />
+                    <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                      (Tiếng Phút Giây)
+                    </span>
                     <p className="text-xs text-slate-500 dark:text-slate-400">
                       Tự động cộng từ tổng thời lượng của tất cả bài học.
                     </p>
@@ -770,11 +796,30 @@ export default function InstructorCreateCoursePage() {
                         </div>
                       </label>
 
-                      <label className="space-y-2">
+                      <label className="space-y-2 md:col-span-2">
                         <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
                           Thời lượng
                         </span>
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-3 gap-3">
+                          <label className="space-y-2">
+                            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                              Tiếng
+                            </span>
+                            <input
+                              type="number"
+                              min="0"
+                              className={fieldClassName}
+                              placeholder="0"
+                              value={lesson.durationHours}
+                              onChange={(event) =>
+                                handleLessonChange(
+                                  lesson.id,
+                                  "durationHours",
+                                  event.target.value,
+                                )
+                              }
+                            />
+                          </label>
                           <label className="space-y-2">
                             <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                               Phút
@@ -817,25 +862,69 @@ export default function InstructorCreateCoursePage() {
                         </div>
                       </label>
 
-                      <label className="space-y-2">
+                      <label className="space-y-2 md:col-span-2">
                         <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                          Loại bài học
+                          Tài liệu đính kèm
                         </span>
-                        <select
-                          className={fieldClassName}
-                          value={lesson.type}
-                          onChange={(event) =>
-                            handleLessonChange(
-                              lesson.id,
-                              "type",
-                              event.target.value,
-                            )
-                          }
-                        >
-                          <option>Video</option>
-                          <option>Practice</option>
-                          <option>Quiz</option>
-                        </select>
+                        <div className="flex items-center gap-3">
+                          <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-cyan-300 bg-cyan-50 px-3 py-2 text-sm font-semibold text-cyan-700 transition hover:bg-cyan-100 dark:border-cyan-700/40 dark:bg-cyan-900/20 dark:text-cyan-300">
+                            <FileText className="h-4 w-4" />
+                            Chọn tệp
+                            <input
+                              type="file"
+                              accept=".pdf,.doc,.docx,.zip"
+                              className="hidden"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file)
+                                  handleLessonAttachmentUpload(lesson.id, file);
+                                e.target.value = "";
+                              }}
+                            />
+                          </label>
+
+                          <div className="text-sm text-slate-600 dark:text-slate-400">
+                            {(lesson.attachments || []).length > 0 ? (
+                              <ul className="space-y-1">
+                                {(lesson.attachments || []).map((att, aIdx) => (
+                                  <li
+                                    key={aIdx}
+                                    className="flex items-center gap-2"
+                                  >
+                                    <a
+                                      href={att.url}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="text-cyan-700 underline dark:text-cyan-300"
+                                    >
+                                      {att.fileName || "Tệp đính kèm"}
+                                    </a>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const newList = (
+                                          lesson.attachments || []
+                                        ).filter((_, i) => i !== aIdx);
+                                        handleLessonChange(
+                                          lesson.id,
+                                          "attachments",
+                                          newList,
+                                        );
+                                      }}
+                                      className="ml-2 rounded-lg p-1 text-slate-600 transition hover:bg-red-100 hover:text-red-600 dark:text-slate-400 dark:hover:bg-red-900/20"
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </button>
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <p className="text-xs text-slate-500 dark:text-slate-400">
+                                Chỉ hỗ trợ pdf, docx, zip
+                              </p>
+                            )}
+                          </div>
+                        </div>
                       </label>
 
                       <label className="space-y-2 md:col-span-2">

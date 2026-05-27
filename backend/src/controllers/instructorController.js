@@ -281,6 +281,7 @@ export const createLesson = async (req, res) => {
       duration = 0,
       summary,
       resources = [],
+      attachments = [],
       order,
     } = req.body;
 
@@ -297,6 +298,7 @@ export const createLesson = async (req, res) => {
       summary: summary || undefined,
       order: lessonOrder,
       resources: Array.isArray(resources) ? resources : [],
+      attachments: Array.isArray(attachments) ? attachments : [],
     };
 
     course.lessons = course.lessons || [];
@@ -343,6 +345,7 @@ export const updateLesson = async (req, res) => {
       duration = 0,
       summary,
       resources = [],
+      attachments = [],
       order,
     } = req.body;
 
@@ -368,6 +371,10 @@ export const updateLesson = async (req, res) => {
 
     if (resources !== undefined) {
       lesson.resources = Array.isArray(resources) ? resources : [];
+    }
+
+    if (attachments !== undefined) {
+      lesson.attachments = Array.isArray(attachments) ? attachments : [];
     }
 
     if (order !== undefined) {

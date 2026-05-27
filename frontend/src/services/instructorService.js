@@ -12,6 +12,15 @@ export const instructorService = {
     return res.data.imageUrl;
   },
 
+  uploadLessonAttachment: async (file) => {
+    const formData = new FormData();
+    formData.append("attachment", file);
+
+    const res = await api.post("/api/upload-attachment", formData);
+    // returns { attachment }
+    return res.data.attachment;
+  },
+
   getMyCourses: async () => {
     const res = await api.get(API_ENDPOINTS.INSTRUCTOR_COURSES);
     return res.data.courses || [];
