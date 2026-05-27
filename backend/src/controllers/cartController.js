@@ -16,7 +16,12 @@ export const getCart = async (req, res) => {
       .lean();
 
     const courses = items
-      .filter((it) => it.courseId)
+      .filter(
+        (it) =>
+          it.courseId &&
+          String(it.courseId.instructorId?._id || it.courseId.instructorId) !==
+            String(userId),
+      )
       .map((it) => ({ ...it.courseId, cartItemId: it._id }));
 
     return res
@@ -40,6 +45,12 @@ export const addToCart = async (req, res) => {
     const course = await Course.findById(courseId);
     if (!course || course.status !== "published") {
       return res.status(404).json({ message: "Khóa học không tồn tại" });
+    }
+
+    if (String(course.instructorId) === String(userId)) {
+      return res
+        .status(403)
+        .json({ message: "Bạn không thể thêm khóa học do chính mình tạo" });
     }
 
     const existingEnrollment = await Enrollment.findOne({ userId, courseId });

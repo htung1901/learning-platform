@@ -17,6 +17,9 @@ import { ROUTES } from "../../lib/constants";
 const CATEGORY_OPTIONS = ["Tất cả", "Lập trình", "Thiết kế", "Marketing"];
 const LEVEL_OPTIONS = ["All", "Beginner", "Intermediate", "Advanced"];
 
+const getCourseOwnerId = (course) =>
+  course?.instructorId?._id || course?.instructorId?.id || course?.instructorId;
+
 export default function CoursesPage() {
   const { user } = useAuthStore();
   const [query, setQuery] = useState("");
@@ -229,83 +232,95 @@ export default function CoursesPage() {
                 {loading ? (
                   <div className="col-span-3 text-center py-16">Loading...</div>
                 ) : (
-                  paginatedCourses.map((course) => (
-                    <article
-                      key={course._id}
-                      className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-xl dark:border-slate-700 dark:bg-slate-900"
-                    >
-                      <div className="relative h-44 overflow-hidden">
-                        <img
-                          src={course.thumbnailUrl || "/placeholder.png"}
-                          alt={course.title}
-                          className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
-                        />
-                        <span className="absolute left-3 top-3 rounded-full bg-slate-900/80 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur dark:bg-slate-700/80">
-                          {course.category}
-                        </span>
-                        <span
-                          className={`absolute right-3 top-3 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold backdrop-blur text-white ${
-                            course.isOwned
-                              ? "bg-emerald-500/90"
-                              : "bg-cyan-500/90"
-                          }`}
+                  paginatedCourses.map((course) =>
+                    (() => {
+                      const isCreator = Boolean(
+                        user?._id &&
+                        String(getCourseOwnerId(course) || "") ===
+                          String(user._id),
+                      );
+
+                      return (
+                        <article
+                          key={course._id}
+                          className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-xl dark:border-slate-700 dark:bg-slate-900"
                         >
-                          {course.isOwned ? "Đã sở hữu" : "Chưa mua"}
-                        </span>
-                      </div>
-
-                      <div className="p-5">
-                        <h3 className="line-clamp-2 min-h-14 text-lg font-bold text-slate-900 dark:text-white">
-                          {course.title}
-                        </h3>
-
-                        <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
-                          <span className="inline-flex items-center gap-1">
-                            <Clock3 className="h-3.5 w-3.5" />
-                            {formatDurationHuman(course.totalDuration)}
-                          </span>
-                          <span className="inline-flex items-center gap-1">
-                            <Users className="h-3.5 w-3.5" />
-                            {(course.totalStudents || 0).toLocaleString(
-                              "vi-VN",
-                            )}{" "}
-                            học viên
-                          </span>
-                          <span className="inline-flex items-center gap-1">
-                            <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
-                            {course.rating || "-"}
-                          </span>
-                        </div>
-
-                        <div className="mt-5 space-y-3">
-                          <div className="flex items-center justify-between gap-3">
-                            <span className="text-xl font-extrabold text-slate-900 dark:text-white">
-                              {course.price}
+                          <div className="relative h-44 overflow-hidden">
+                            <img
+                              src={course.thumbnailUrl || "/placeholder.png"}
+                              alt={course.title}
+                              className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                            />
+                            <span className="absolute left-3 top-3 rounded-full bg-slate-900/80 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur dark:bg-slate-700/80">
+                              {course.category}
                             </span>
+                            {!isCreator ? (
+                              <span
+                                className={`absolute right-3 top-3 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold backdrop-blur text-white ${
+                                  course.isOwned
+                                    ? "bg-emerald-500/90"
+                                    : "bg-cyan-500/90"
+                                }`}
+                              >
+                                {course.isOwned ? "Đã sở hữu" : "Chưa mua"}
+                              </span>
+                            ) : null}
                           </div>
 
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="flex items-center gap-2">
-                              <Link
-                                to={ROUTES.CART}
-                                className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-cyan-200 bg-cyan-50 text-cyan-700 transition hover:border-cyan-300 hover:bg-cyan-100 dark:border-cyan-900/40 dark:bg-cyan-900/20 dark:text-cyan-300"
-                                title="Thêm vào giỏ"
-                              >
-                                <ShoppingCart className="h-4 w-4" />
-                              </Link>
+                          <div className="p-5">
+                            <h3 className="line-clamp-2 min-h-14 text-lg font-bold text-slate-900 dark:text-white">
+                              {course.title}
+                            </h3>
+
+                            <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
+                              <span className="inline-flex items-center gap-1">
+                                <Clock3 className="h-3.5 w-3.5" />
+                                {formatDurationHuman(course.totalDuration)}
+                              </span>
+                              <span className="inline-flex items-center gap-1">
+                                <Users className="h-3.5 w-3.5" />
+                                {(course.totalStudents || 0).toLocaleString(
+                                  "vi-VN",
+                                )}{" "}
+                                học viên
+                              </span>
+                              <span className="inline-flex items-center gap-1">
+                                <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+                                {course.rating || "-"}
+                              </span>
                             </div>
 
-                            <Link
-                              to={`/courses/${course._id}`}
-                              className="inline-flex items-center justify-center rounded-lg bg-linear-to-r from-cyan-500 to-emerald-500 px-4 py-2 text-sm font-semibold text-white transition hover:shadow-lg"
-                            >
-                              Xem chi tiết
-                            </Link>
+                            <div className="mt-5 space-y-3">
+                              <div className="flex items-center justify-between gap-3">
+                                <span className="text-xl font-extrabold text-slate-900 dark:text-white">
+                                  {course.price}
+                                </span>
+                              </div>
+
+                              <div className="flex items-center justify-between gap-3">
+                                <div className="flex items-center gap-2">
+                                  <Link
+                                    to={ROUTES.CART}
+                                    className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-cyan-200 bg-cyan-50 text-cyan-700 transition hover:border-cyan-300 hover:bg-cyan-100 dark:border-cyan-900/40 dark:bg-cyan-900/20 dark:text-cyan-300"
+                                    title="Thêm vào giỏ"
+                                  >
+                                    <ShoppingCart className="h-4 w-4" />
+                                  </Link>
+                                </div>
+
+                                <Link
+                                  to={`/courses/${course._id}`}
+                                  className="inline-flex items-center justify-center rounded-lg bg-linear-to-r from-cyan-500 to-emerald-500 px-4 py-2 text-sm font-semibold text-white transition hover:shadow-lg"
+                                >
+                                  Xem chi tiết
+                                </Link>
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      </div>
-                    </article>
-                  ))
+                        </article>
+                      );
+                    })(),
+                  )
                 )}
               </div>
 

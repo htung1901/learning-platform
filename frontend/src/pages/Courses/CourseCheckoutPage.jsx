@@ -7,6 +7,9 @@ import paymentService from "../../services/paymentService";
 import studentService from "../../services/studentService";
 import { useAuthStore } from "../../store/authStore";
 
+const getCourseOwnerId = (course) =>
+  course?.instructorId?._id || course?.instructorId?.id || course?.instructorId;
+
 const PAYMENT_METHODS = [
   { key: "card", label: "Thẻ ngân hàng", icon: CreditCard },
   { key: "momo", label: "Ví MoMo", icon: Wallet },
@@ -31,6 +34,9 @@ export default function CourseCheckoutPage() {
   const [coupon, setCoupon] = useState("");
   const [isPaid, setIsPaid] = useState(false);
   const { user } = useAuthStore();
+  const isCreator = Boolean(
+    user?._id && String(getCourseOwnerId(course) || "") === String(user._id),
+  );
 
   useEffect(() => {
     let mounted = true;
@@ -79,7 +85,9 @@ export default function CourseCheckoutPage() {
 
   if (loading) return <div className="p-8">Loading...</div>;
   if (!course) return <Navigate to={ROUTES.COURSES} replace />;
-  if (isOwned) return <Navigate to={ROUTES.STUDENT_DASHBOARD} replace />;
+  if (isOwned || isCreator) {
+    return <Navigate to={`/courses/${id}`} replace />;
+  }
 
   const price = Number(course.price || 0);
   const discount =
@@ -277,10 +285,6 @@ export default function CourseCheckoutPage() {
           >
             Quay lại trang khóa học
           </Link>
-
-          <p className="mt-4 text-xs text-slate-500 dark:text-slate-400">
-            Giao dịch được mô phỏng cho mục đích demo giao diện.
-          </p>
         </aside>
       </div>
     </div>

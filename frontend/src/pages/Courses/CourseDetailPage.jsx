@@ -16,6 +16,9 @@ import { useEffect, useState } from "react";
 import { useAuthStore } from "../../store/authStore";
 import studentService from "../../services/studentService";
 
+const getCourseOwnerId = (course) =>
+  course?.instructorId?._id || course?.instructorId?.id || course?.instructorId;
+
 export default function CourseDetailPage() {
   const { id } = useParams();
   const [course, setCourse] = useState(null);
@@ -23,6 +26,9 @@ export default function CourseDetailPage() {
   const [isOwned, setIsOwned] = useState(false);
   const navigate = useNavigate();
   const { user } = useAuthStore();
+  const isCreator = Boolean(
+    user?._id && String(getCourseOwnerId(course) || "") === String(user._id),
+  );
 
   useEffect(() => {
     let mounted = true;
@@ -152,12 +158,26 @@ export default function CourseDetailPage() {
                   {course.price}
                 </p>
                 <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-                  {isOwned
-                    ? "Bạn đã sở hữu khóa học này. Vào học tiếp ngay hoặc xem tiến độ trong dashboard."
-                    : "Bạn chưa sở hữu khóa học này. Mua ngay để mở toàn bộ nội dung."}
+                  {isCreator
+                    ? "Bạn là giảng viên của khóa học này. Đây là trang chỉ xem thông tin, không thể mua lại khóa học của chính mình."
+                    : isOwned
+                      ? "Bạn đã sở hữu khóa học này. Vào học tiếp ngay hoặc xem tiến độ trong dashboard."
+                      : "Bạn chưa sở hữu khóa học này. Mua ngay để mở toàn bộ nội dung."}
                 </p>
 
-                {isOwned ? (
+                {isCreator ? (
+                  <div className="mt-4 grid gap-3">
+                    <div className="rounded-xl border border-cyan-200 bg-cyan-50 px-4 py-3 text-sm font-semibold text-cyan-700 dark:border-cyan-900/40 dark:bg-cyan-900/20 dark:text-cyan-300">
+                      Khóa học của bạn chỉ hiển thị ở chế độ thông tin.
+                    </div>
+                    <Link
+                      to={ROUTES.COURSES}
+                      className="inline-flex w-full items-center justify-center rounded-xl border border-slate-300 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:border-cyan-400 hover:text-cyan-700 dark:border-slate-700 dark:text-slate-300"
+                    >
+                      Quay lại danh sách khóa học
+                    </Link>
+                  </div>
+                ) : isOwned ? (
                   <div className="mt-4 grid gap-3">
                     <Link
                       to={

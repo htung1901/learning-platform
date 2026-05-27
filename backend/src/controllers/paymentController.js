@@ -14,6 +14,12 @@ export const fakePayment = async (req, res) => {
     const course = await Course.findById(courseId);
     if (!course) return res.status(404).json({ message: "Course not found" });
 
+    if (String(course.instructorId) === String(user._id)) {
+      return res
+        .status(403)
+        .json({ message: "Bạn không thể mua khóa học do chính mình tạo" });
+    }
+
     // If already enrolled, return existing
     let enrollment = await Enrollment.findOne({ userId: user._id, courseId });
     if (enrollment) {
@@ -63,6 +69,11 @@ export const fakeCartPayment = async (req, res) => {
     for (const item of validItems) {
       const course = item.courseId;
 
+      if (String(course.instructorId) === String(user._id)) {
+        skippedCourseIds.push(course._id);
+        continue;
+      }
+
       const existingEnrollment = await Enrollment.findOne({
         userId: user._id,
         courseId: course._id,
@@ -86,6 +97,12 @@ export const fakeCartPayment = async (req, res) => {
       await course.save();
 
       purchasedCourseIds.push(course._id);
+    }
+
+    if (purchasedCourseIds.length === 0) {
+      return res.status(400).json({
+        message: "Giỏ hàng không có khóa học hợp lệ để thanh toán",
+      });
     }
 
     const discount =

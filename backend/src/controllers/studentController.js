@@ -87,6 +87,8 @@ export const getAvailableCourses = async (req, res) => {
       query._id = { $nin: purchasedIds };
     }
 
+    query.instructorId = { $ne: userId };
+
     if (q) {
       // simple text search on title or description
       query.$or = [
