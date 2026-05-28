@@ -593,23 +593,6 @@ export default function InstructorEditLessonsPage() {
               onChange={(event) => setCourseDescription(event.target.value)}
             />
           </label>
-
-          <label className="block space-y-2">
-            <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-              Outline nội dung
-            </span>
-            <textarea
-              rows={7}
-              className={fieldClassName}
-              value={lessons
-                .map(
-                  (lesson, index) =>
-                    `${index + 1}. ${lesson.title || "Chưa đặt tiêu đề"}`,
-                )
-                .join("\n")}
-              readOnly
-            />
-          </label>
         </div>
       </article>
 

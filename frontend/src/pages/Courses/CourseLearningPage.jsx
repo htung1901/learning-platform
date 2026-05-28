@@ -11,6 +11,7 @@ import {
   MessageSquareText,
   PlayCircle,
   SkipForward,
+  Download,
 } from "lucide-react";
 import { toast } from "sonner";
 import studentService from "../../services/studentService";
@@ -21,6 +22,29 @@ const lessonBadgeClass = {
   practice:
     "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
   quiz: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
+};
+
+const getAttachmentDownloadUrl = (url, fileName = "") => {
+  if (!url || typeof url !== "string") return "";
+  if (!url.includes("/upload/")) return url;
+
+  const safeFileName = encodeURIComponent(fileName || "download");
+  return url.replace("/upload/", `/upload/fl_attachment:${safeFileName}/`);
+};
+
+const formatFileSize = (bytes = 0) => {
+  const size = Number(bytes) || 0;
+  if (!size) return "";
+  const units = ["B", "KB", "MB", "GB"];
+  let value = size;
+  let unitIndex = 0;
+
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex += 1;
+  }
+
+  return `${value.toFixed(value >= 10 || unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
 };
 
 export default function CourseLearningPage() {
@@ -206,101 +230,162 @@ export default function CourseLearningPage() {
             </div>
 
             <div className="mt-5 grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-              <article className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
-                <div className="flex items-center gap-2 text-sm font-semibold text-slate-500 dark:text-slate-400">
-                  <PlayCircle className="h-4 w-4" />
-                  Bài học đang mở
-                </div>
-                <h2 className="mt-2 text-xl font-bold text-slate-900 dark:text-white">
-                  {activeLesson?.title}
-                </h2>
-                <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
-                  Đây là màn hình học mô phỏng: video, tài liệu, checklist và
-                  bài học tiếp theo đều được hiển thị để học viên theo dõi tiến
-                  độ.
-                </p>
-
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-2 rounded-xl bg-linear-to-r from-cyan-500 to-emerald-500 px-4 py-2.5 text-sm font-bold text-white transition hover:shadow-lg"
-                    onClick={async () => {
-                      try {
-                        const resp = await studentService.updateLessonProgress(
-                          courseId,
-                          activeLesson._id,
-                          { markCompleted: true },
-                        );
-                        setEnrollment(resp.data || resp);
-                        toast.success("Đã hoàn thành bài học");
-                        const updatedEnrollment = resp.data || resp;
-                        const updatedProgress = Number(
-                          updatedEnrollment?.progressPercent || 0,
-                        );
-                        const updatedStatus = updatedEnrollment?.status;
-
-                        if (
-                          updatedStatus === "completed" ||
-                          updatedProgress >= 100 ||
-                          !nextLesson
-                        ) {
-                          setShowCompletionModal(true);
-                          return;
-                        }
-
-                        if (nextLesson) {
-                          navigate(
-                            `/lesson/${courseId}/${nextLesson._id || nextLesson.id}`,
-                          );
-                        }
-                      } catch (e) {
-                        console.error(e);
-                        toast.error("Không thể cập nhật tiến độ bài học");
-                      }
-                    }}
-                  >
-                    <CirclePlay className="h-4 w-4" />
-                    {isLessonCompleted ? "Đã hoàn thành" : "Hoàn thành bài học"}
-                  </button>
-
-                  {nextLesson ? (
-                    <Link
-                      to={`/lesson/${courseId}/${nextLesson._id || nextLesson.id}`}
-                      className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-cyan-400 hover:text-cyan-700 dark:border-slate-700 dark:text-slate-300"
-                    >
-                      <SkipForward className="h-4 w-4" />
-                      Bài tiếp theo
-                    </Link>
-                  ) : null}
-                </div>
-              </article>
-
-              <article className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
-                <div className="flex items-center gap-2 text-sm font-semibold text-slate-500 dark:text-slate-400">
-                  <FileText className="h-4 w-4" />
-                  Tài liệu đi kèm
-                </div>
-                <div className="mt-3 space-y-2">
-                  {(activeLesson?.resources || []).map((resource) => (
-                    <div
-                      key={resource}
-                      className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-300"
-                    >
-                      {resource}
-                    </div>
-                  ))}
-                </div>
-
-                <div className="mt-5 rounded-xl bg-cyan-50 p-4 dark:bg-cyan-900/20">
-                  <div className="flex items-center gap-2 text-sm font-semibold text-cyan-700 dark:text-cyan-300">
-                    <MessageSquareText className="h-4 w-4" />
-                    Ghi chú nhanh
+              <div className="space-y-4">
+                <article className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-slate-500 dark:text-slate-400">
+                    <PlayCircle className="h-4 w-4" />
+                    Bài học đang mở
                   </div>
-                  <p className="mt-2 text-sm text-cyan-800/90 dark:text-cyan-100/90">
-                    Người học có thể lưu lại note, câu hỏi hoặc đánh dấu phần
-                    cần xem lại sau.
+                  <h2 className="mt-2 text-xl font-bold text-slate-900 dark:text-white">
+                    {activeLesson?.title}
+                  </h2>
+                  <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+                    {activeLesson?.summary ||
+                      courseData?.description ||
+                      "Đây là màn hình học mô phỏng: video, tài liệu, checklist và bài học tiếp theo đều được hiển thị để học viên theo dõi tiến độ."}
                   </p>
+
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-2 rounded-xl bg-linear-to-r from-cyan-500 to-emerald-500 px-4 py-2.5 text-sm font-bold text-white transition hover:shadow-lg"
+                      onClick={async () => {
+                        try {
+                          const resp =
+                            await studentService.updateLessonProgress(
+                              courseId,
+                              activeLesson._id,
+                              { markCompleted: true },
+                            );
+                          setEnrollment(resp.data || resp);
+                          toast.success("Đã hoàn thành bài học");
+                          const updatedEnrollment = resp.data || resp;
+                          const updatedProgress = Number(
+                            updatedEnrollment?.progressPercent || 0,
+                          );
+                          const updatedStatus = updatedEnrollment?.status;
+
+                          if (
+                            updatedStatus === "completed" ||
+                            updatedProgress >= 100 ||
+                            !nextLesson
+                          ) {
+                            setShowCompletionModal(true);
+                            return;
+                          }
+
+                          if (nextLesson) {
+                            navigate(
+                              `/lesson/${courseId}/${nextLesson._id || nextLesson.id}`,
+                            );
+                          }
+                        } catch (e) {
+                          console.error(e);
+                          toast.error("Không thể cập nhật tiến độ bài học");
+                        }
+                      }}
+                    >
+                      <CirclePlay className="h-4 w-4" />
+                      {isLessonCompleted
+                        ? "Đã hoàn thành"
+                        : "Hoàn thành bài học"}
+                    </button>
+
+                    {nextLesson ? (
+                      <Link
+                        to={`/lesson/${courseId}/${nextLesson._id || nextLesson.id}`}
+                        className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-cyan-400 hover:text-cyan-700 dark:border-slate-700 dark:text-slate-300"
+                      >
+                        <SkipForward className="h-4 w-4" />
+                        Bài tiếp theo
+                      </Link>
+                    ) : null}
+                  </div>
+                </article>
+
+                <article className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-slate-500 dark:text-slate-400">
+                    <FileText className="h-4 w-4" />
+                    Tài liệu đi kèm
+                  </div>
+                  <div className="mt-3 space-y-2">
+                    {(activeLesson?.attachments || []).length > 0 ? (
+                      activeLesson.attachments.map((attachment, index) => {
+                        const downloadUrl = getAttachmentDownloadUrl(
+                          attachment.url,
+                          attachment.fileName,
+                        );
+
+                        return (
+                          <a
+                            key={`${attachment.url || attachment.fileName || index}`}
+                            href={downloadUrl}
+                            download={attachment.fileName || true}
+                            className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-700 transition hover:border-cyan-300 hover:bg-cyan-50 sm:flex-row sm:items-center sm:justify-between dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-300 dark:hover:border-cyan-700/60 dark:hover:bg-cyan-900/20"
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate font-semibold text-slate-900 dark:text-white">
+                                {attachment.fileName || `Tài liệu ${index + 1}`}
+                              </p>
+                              <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                                {[
+                                  attachment.mimeType,
+                                  formatFileSize(attachment.size),
+                                ]
+                                  .filter(Boolean)
+                                  .join(" • ")}
+                              </p>
+                            </div>
+                            <span className="inline-flex shrink-0 items-center gap-1 self-start rounded-full bg-white px-3 py-1 text-xs font-semibold text-cyan-700 shadow-sm sm:self-auto dark:bg-slate-900 dark:text-cyan-300">
+                              <Download className="h-3.5 w-3.5" />
+                              Tải xuống
+                            </span>
+                          </a>
+                        );
+                      })
+                    ) : (activeLesson?.resources || []).length > 0 ? (
+                      activeLesson.resources.map((resource) => (
+                        <div
+                          key={resource}
+                          className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-300"
+                        >
+                          {resource}
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-sm text-slate-500 dark:text-slate-400">
+                        Bài học này chưa có tài liệu đính kèm.
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="mt-5 rounded-xl bg-cyan-50 p-4 dark:bg-cyan-900/20">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-cyan-700 dark:text-cyan-300">
+                      <MessageSquareText className="h-4 w-4" />
+                      Ghi chú nhanh
+                    </div>
+                    <p className="mt-2 text-sm text-cyan-800/90 dark:text-cyan-100/90">
+                      Người học có thể lưu lại note, câu hỏi hoặc đánh dấu phần
+                      cần xem lại sau.
+                    </p>
+                  </div>
+                </article>
+              </div>
+
+              <div />
+            </div>
+
+            <div className="mt-5 grid gap-4 lg:grid-cols-2">
+              <article className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
+                <div className="flex items-center gap-2 text-sm font-semibold text-slate-500 dark:text-slate-400">
+                  <BookOpen className="h-4 w-4" />
+                  Mô tả khóa học
                 </div>
+                <p className="mt-3 whitespace-pre-line text-sm leading-6 text-slate-600 dark:text-slate-300">
+                  {courseData?.description || "Chưa có mô tả cho khóa học này."}
+                </p>
               </article>
             </div>
           </div>

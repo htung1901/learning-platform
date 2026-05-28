@@ -553,19 +553,6 @@ export default function InstructorCreateCoursePage() {
                       }
                     />
                   </label>
-
-                  <label className="block space-y-2">
-                    <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                      Outline nội dung
-                    </span>
-                    <textarea
-                      rows={7}
-                      className={fieldClassName}
-                      placeholder={
-                        "1. Giới thiệu\n2. Nền tảng\n3. Thực hành\n4. Dự án"
-                      }
-                    />
-                  </label>
                 </div>
               </article>
 

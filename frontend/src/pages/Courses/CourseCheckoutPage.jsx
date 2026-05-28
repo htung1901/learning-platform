@@ -1,6 +1,13 @@
 import { useState, useEffect } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
-import { CreditCard, ShieldCheck, TicketPercent, Wallet } from "lucide-react";
+import {
+  Clock3,
+  CreditCard,
+  FileText,
+  ShieldCheck,
+  TicketPercent,
+  Wallet,
+} from "lucide-react";
 import { ROUTES } from "../../lib/constants";
 import courseService from "../../services/courseService";
 import paymentService from "../../services/paymentService";
@@ -167,6 +174,16 @@ export default function CourseCheckoutPage() {
                 </p>
               </div>
             </div>
+          </article>
+
+          <article className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
+            <div className="flex items-center gap-2 text-sm font-semibold text-slate-500 dark:text-slate-400">
+              <FileText className="h-4 w-4" />
+              Mô tả khóa học
+            </div>
+            <p className="mt-3 whitespace-pre-line text-sm leading-6 text-slate-600 dark:text-slate-300">
+              {course.description || "Chưa có mô tả cho khóa học này."}
+            </p>
           </article>
 
           <div className="mt-7">
