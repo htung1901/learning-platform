@@ -20,6 +20,45 @@ const LEVEL_OPTIONS = ["All", "Beginner", "Intermediate", "Advanced"];
 const getCourseOwnerId = (course) =>
   course?.instructorId?._id || course?.instructorId?.id || course?.instructorId;
 
+// Tạo lộ trình xem trước dựa trên thời lượng khóa học để hiển thị trong modal.
+const buildLearningPathPreview = (courses, timeLimitHours) => {
+  const limitHours = Math.max(0, Number(timeLimitHours) || 0);
+  const limitSeconds = limitHours * 3600;
+
+  const sortedCourses = [...courses].sort((left, right) => {
+    const leftDuration = Math.max(0, Number(left.totalDuration) || 0);
+    const rightDuration = Math.max(0, Number(right.totalDuration) || 0);
+    if (leftDuration !== rightDuration) return leftDuration - rightDuration;
+
+    const leftRating = Number(left.ratingAvg || left.rating || 0);
+    const rightRating = Number(right.ratingAvg || right.rating || 0);
+    if (leftRating !== rightRating) return rightRating - leftRating;
+
+    return (
+      (Number(right.totalStudents) || 0) - (Number(left.totalStudents) || 0)
+    );
+  });
+
+  const selectedCourses = [];
+  let totalDuration = 0;
+
+  for (const course of sortedCourses) {
+    const courseDuration = Math.max(0, Number(course.totalDuration) || 0);
+    if (!courseDuration) continue;
+
+    if (totalDuration + courseDuration <= limitSeconds) {
+      selectedCourses.push(course);
+      totalDuration += courseDuration;
+    }
+  }
+
+  return {
+    selectedCourses,
+    totalDuration,
+    limitSeconds,
+  };
+};
+
 export default function CoursesPage() {
   const { user } = useAuthStore();
   const [query, setQuery] = useState("");
@@ -30,6 +69,10 @@ export default function CoursesPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const coursesPerPage = 6;
   const [pagination, setPagination] = useState(null);
+  const [isLearningPathModalOpen, setIsLearningPathModalOpen] = useState(false);
+  const [timeLimitHours, setTimeLimitHours] = useState("2");
+  const [learningPathPreview, setLearningPathPreview] = useState([]);
+  const [learningPathTotalDuration, setLearningPathTotalDuration] = useState(0);
 
   const totalPages =
     pagination?.pages ||
@@ -87,7 +130,7 @@ export default function CoursesPage() {
     return () => {
       mounted = false;
     };
-  }, [currentPage, query, category, level]);
+  }, [currentPage, query, category, level, user]);
 
   const formatDurationHuman = (seconds = 0) => {
     const total = Math.max(0, Number(seconds) || 0);
@@ -124,6 +167,23 @@ export default function CoursesPage() {
 
     return pageNumbers;
   }, [safeCurrentPage, totalPages]);
+
+  const handleGenerateLearningPath = () => {
+    const preview = buildLearningPathPreview(courses, timeLimitHours);
+    setLearningPathPreview(preview.selectedCourses);
+    setLearningPathTotalDuration(preview.totalDuration);
+  };
+
+  const formatLearningDurationLabel = (seconds = 0) => {
+    const totalSeconds = Math.max(0, Number(seconds) || 0);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+
+    if (!hours && !minutes) return "0 phút";
+    if (!hours) return `${minutes} phút`;
+    if (!minutes) return `${hours} giờ`;
+    return `${hours} giờ ${minutes} phút`;
+  };
 
   if (user?.role === "instructor")
     return <Navigate to={ROUTES.DASHBOARD} replace />;
@@ -174,24 +234,39 @@ export default function CoursesPage() {
             </div>
           </div>
 
-          <div className="mb-8 flex flex-wrap gap-2">
-            {CATEGORY_OPTIONS.map((item) => (
-              <button
-                key={item}
-                type="button"
-                onClick={() => {
-                  setCategory(item);
-                  setCurrentPage(1);
-                }}
-                className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
-                  category === item
-                    ? "border-cyan-500 bg-cyan-500 text-white shadow"
-                    : "border-slate-200 bg-white text-slate-600 hover:border-cyan-300 hover:text-cyan-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-cyan-500"
-                }`}
-              >
-                {item}
-              </button>
-            ))}
+          <div className="mb-8 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+            <div className="flex flex-wrap gap-2">
+              {CATEGORY_OPTIONS.map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  onClick={() => {
+                    setCategory(item);
+                    setCurrentPage(1);
+                  }}
+                  className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
+                    category === item
+                      ? "border-cyan-500 bg-cyan-500 text-white shadow"
+                      : "border-slate-200 bg-white text-slate-600 hover:border-cyan-300 hover:text-cyan-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-cyan-500"
+                  }`}
+                >
+                  {item}
+                </button>
+              ))}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setIsLearningPathModalOpen(true);
+                if (!learningPathPreview.length) {
+                  handleGenerateLearningPath();
+                }
+              }}
+              className="inline-flex items-center justify-center rounded-2xl border border-amber-200 bg-linear-to-r from-amber-300 via-orange-400 to-yellow-300 px-32 py-3 text-sm font-bold text-slate-900 shadow-lg shadow-amber-500/25 transition hover:-translate-y-0.5 hover:shadow-xl hover:shadow-amber-500/30 dark:border-amber-300/40 dark:text-slate-950"
+            >
+              Gợi ý lộ trình học
+            </button>
           </div>
 
           <div className="mb-10 flex flex-wrap items-center gap-2">
@@ -376,6 +451,122 @@ export default function CoursesPage() {
           )}
         </section>
       </div>
+
+      {isLearningPathModalOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
+          <button
+            type="button"
+            aria-label="Đóng modal"
+            onClick={() => setIsLearningPathModalOpen(false)}
+            className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm"
+          />
+
+          <div className="relative z-10 w-full max-w-6xl overflow-hidden rounded-3xl border border-white/60 bg-white shadow-2xl dark:border-slate-700/60 dark:bg-slate-900">
+            <div className="flex items-center justify-between gap-4 border-b border-slate-200 px-6 py-5 dark:border-slate-700">
+              <div>
+                <h2 className="text-xl font-black tracking-tight text-slate-900 dark:text-white">
+                  Gợi ý lộ trình học
+                </h2>
+                <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+                  Nhập thời gian bạn có và xem lộ trình khóa học đề xuất ngay
+                  bên dưới.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsLearningPathModalOpen(false)}
+                className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-900 dark:border-slate-700 dark:text-slate-300 dark:hover:text-white"
+              >
+                Đóng
+              </button>
+            </div>
+
+            <div className="grid gap-6 p-6 lg:grid-cols-[380px_1fr]">
+              <div className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50 p-5 dark:border-slate-700 dark:bg-slate-800/50">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300">
+                    Thời gian học (giờ)
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    className="mt-2 h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-800 outline-none transition focus:border-amber-500 focus:ring-4 focus:ring-amber-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus:border-amber-400 dark:focus:ring-amber-900/40"
+                    placeholder="VD: 2"
+                    value={timeLimitHours}
+                    onChange={(event) => setTimeLimitHours(event.target.value)}
+                  />
+                  <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                    Dùng để lọc một lộ trình phù hợp với quỹ thời gian của bạn.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleGenerateLearningPath}
+                  className="inline-flex h-12 w-full items-center justify-center rounded-xl bg-linear-to-r from-amber-300 via-orange-400 to-yellow-300 px-4 text-sm font-bold text-slate-900 shadow-lg shadow-amber-500/25 transition hover:-translate-y-0.5 hover:shadow-xl hover:shadow-amber-500/30"
+                >
+                  Generate
+                </button>
+
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-300/30 dark:bg-amber-900/20 dark:text-amber-100">
+                  <p className="font-semibold">Tóm tắt</p>
+                  <p className="mt-1">
+                    Đã chọn {learningPathPreview.length} khóa học /{" "}
+                    {formatLearningDurationLabel(learningPathTotalDuration)} /
+                    giới hạn {Math.max(0, Number(timeLimitHours) || 0)} giờ.
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-center justify-between gap-4">
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                    Lộ trình khóa học đề xuất
+                  </h3>
+                  <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                    Xem trước
+                  </span>
+                </div>
+
+                {learningPathPreview.length > 0 ? (
+                  <div className="max-h-160 space-y-3 overflow-y-auto pr-1">
+                    {learningPathPreview.map((course, index) => (
+                      <article
+                        key={course._id}
+                        className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900"
+                      >
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div>
+                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                              Bước {index + 1}
+                            </p>
+                            <h4 className="mt-1 text-base font-bold text-slate-900 dark:text-white">
+                              {course.title}
+                            </h4>
+                          </div>
+                          <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800 dark:bg-amber-900/30 dark:text-amber-200">
+                            {formatLearningDurationLabel(course.totalDuration)}
+                          </span>
+                        </div>
+
+                        <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">
+                          {course.description || "Chưa có mô tả khóa học."}
+                        </p>
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex min-h-60 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
+                    Chưa có lộ trình nào được tạo. Hãy nhập thời gian và bấm
+                    Generate.
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

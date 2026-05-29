@@ -88,6 +88,7 @@ export default function InstructorCreateCoursePage() {
   const [courseCategory, setCourseCategory] = useState("Lập trình");
   const [courseLevel, setCourseLevel] = useState("beginner");
   const [coursePrice, setCoursePrice] = useState(0);
+  const [courseValueScore, setCourseValueScore] = useState(1);
   const [thumbnailUrl, setThumbnailUrl] = useState("");
   const [thumbnailFile, setThumbnailFile] = useState(null);
   const [thumbnailPreviewUrl, setThumbnailPreviewUrl] = useState("");
@@ -170,6 +171,7 @@ export default function InstructorCreateCoursePage() {
     description: courseDescription,
     level: courseLevel,
     price: Number(coursePrice) || 0,
+    valueScore: Math.min(10, Math.max(1, Number(courseValueScore) || 1)),
     thumbnailUrl: thumbnailUrl.trim() || undefined,
     introVideoUrl: introVideoUrl.trim() || undefined,
     status,
@@ -527,6 +529,33 @@ export default function InstructorCreateCoursePage() {
                     </span>
                     <p className="text-xs text-slate-500 dark:text-slate-400">
                       Tự động cộng từ tổng thời lượng của tất cả bài học.
+                    </p>
+                  </label>
+
+                  <label className="space-y-2 md:col-span-2">
+                    <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                      Điểm ưu tiên (Value Score)
+                    </span>
+                    <input
+                      type="number"
+                      min="1"
+                      max="10"
+                      step="1"
+                      className={fieldClassName}
+                      placeholder="VD: 10"
+                      value={courseValueScore}
+                      onChange={(e) => {
+                        const raw = Number(e.target.value) || 0;
+                        const clamped = Math.min(
+                          10,
+                          Math.max(1, Math.floor(raw)),
+                        );
+                        setCourseValueScore(clamped);
+                      }}
+                    />
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      Điểm giúp hệ thống ưu tiên khóa học khi đề xuất lộ trình.
+                      Giá trị càng cao, mức ưu tiên càng lớn.
                     </p>
                   </label>
                 </div>
@@ -1021,6 +1050,14 @@ export default function InstructorCreateCoursePage() {
                 </p>
                 <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">
                   {calculateTotalDuration()}
+                </p>
+              </div>
+              <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/70">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                  Điểm ưu tiên (Value Score)
+                </p>
+                <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">
+                  {Number(courseValueScore) || 0}
                 </p>
               </div>
             </div>
