@@ -210,7 +210,7 @@ function App() {
       </BrowserRouter>
 
       {/* Toaster for notifications */}
-      <Toaster richColors position="bottom-right" />
+      <Toaster richColors position="top-left" />
     </>
   );
 }

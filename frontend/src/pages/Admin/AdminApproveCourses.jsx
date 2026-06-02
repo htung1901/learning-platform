@@ -4,6 +4,7 @@ import { CheckCircle, XCircle, Loader } from "lucide-react";
 import adminService from "../../services/adminService";
 import { useAuthStore } from "../../store/authStore";
 import { toast } from "sonner";
+import { getInstructorDisplayName } from "../../lib/courseUtils";
 
 export default function AdminApproveCourses() {
   const navigate = useNavigate();
@@ -101,7 +102,7 @@ export default function AdminApproveCourses() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-blue-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 py-8 px-4">
+    <div className="min-h-screen bg-linear-to-br from-slate-50 via-purple-50 to-blue-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 py-8 px-4">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="mb-8">
@@ -133,6 +134,9 @@ export default function AdminApproveCourses() {
                     <h3 className="text-lg font-bold text-slate-900 dark:text-white">
                       {course.title}
                     </h3>
+                    <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+                      Giảng viên: {getInstructorDisplayName(course)}
+                    </p>
                     <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
                       {course.description?.substring(0, 100)}...
                     </p>
@@ -189,7 +193,7 @@ export default function AdminApproveCourses() {
                   <button
                     onClick={() => handleApprove(course._id)}
                     disabled={actionLoading !== null}
-                    className="flex items-center gap-2 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-2 px-4 rounded-lg transition"
+                    className="flex items-center gap-2 bg-linear-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-2 px-4 rounded-lg transition"
                   >
                     {actionLoading === course._id ? (
                       <Loader className="w-4 h-4 animate-spin" />
@@ -204,7 +208,7 @@ export default function AdminApproveCourses() {
                       setIsRejectModalOpen(true);
                     }}
                     disabled={actionLoading !== null}
-                    className="flex items-center gap-2 bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-2 px-4 rounded-lg transition"
+                    className="flex items-center gap-2 bg-linear-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-2 px-4 rounded-lg transition"
                   >
                     <XCircle className="w-4 h-4" />
                     Từ Chối

@@ -47,6 +47,8 @@ const courseSchema = new mongoose.Schema(
     totalStudents: { type: Number, default: 0 },
     ratingAvg: { type: Number, default: 0 },
     ratingCount: { type: Number, default: 0 },
+    // Value score used by Learning Path Recommendation: integer 1..10
+    valueScore: { type: Number, default: 1, min: 1, max: 10 },
   },
   {
     timestamps: true,

@@ -4,6 +4,7 @@ import { ShoppingCart } from "lucide-react";
 import { toast } from "sonner";
 import studentService from "../../services/studentService";
 import { ROUTES } from "../../lib/constants";
+import { getInstructorDisplayName } from "../../lib/courseUtils";
 import { useAuthStore } from "../../store/authStore";
 
 export default function AvailableCourses() {
@@ -80,6 +81,9 @@ export default function AvailableCourses() {
                 />
                 <div className="flex-1">
                   <h3 className="text-lg font-semibold">{course.title}</h3>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Giảng viên: {getInstructorDisplayName(course)}
+                  </p>
                   <p className="mt-1 line-clamp-3 text-sm text-slate-500">
                     {course.description}
                   </p>

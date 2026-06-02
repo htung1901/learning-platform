@@ -13,6 +13,7 @@ import { protectedRoute } from "./middlewares/authMiddleware.js";
 import paymentRoute from "./routes/paymentRoute.js";
 import uploadRoute from "./routes/uploadRoute.js";
 import cartRoute from "./routes/cartRoute.js";
+import recommendationRoute from "./routes/recommendationRoute.js";
 
 dotenv.config();
 
@@ -77,6 +78,9 @@ app.use("/api/student", studentRoute);
 
 // public courses
 app.use("/api/courses", courseRoute);
+
+// public recommendation routes: can work for guests, and use auth token when present
+app.use("/api/recommendations", recommendationRoute);
 
 // private routes
 app.use(protectedRoute);

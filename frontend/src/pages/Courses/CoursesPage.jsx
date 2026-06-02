@@ -11,8 +11,10 @@ import {
 } from "lucide-react";
 import courseService from "../../services/courseService";
 import studentService from "../../services/studentService";
+import recommendationService from "../../services/recommendationService";
 import { useAuthStore } from "../../store/authStore";
 import { ROUTES } from "../../lib/constants";
+import { getInstructorDisplayName } from "../../lib/courseUtils";
 
 const CATEGORY_OPTIONS = ["Tất cả", "Lập trình", "Thiết kế", "Marketing"];
 const LEVEL_OPTIONS = ["All", "Beginner", "Intermediate", "Advanced"];
@@ -73,6 +75,8 @@ export default function CoursesPage() {
   const [timeLimitHours, setTimeLimitHours] = useState("2");
   const [learningPathPreview, setLearningPathPreview] = useState([]);
   const [learningPathTotalDuration, setLearningPathTotalDuration] = useState(0);
+  const [generating, setGenerating] = useState(false);
+  const [learningPathMessage, setLearningPathMessage] = useState("");
 
   const totalPages =
     pagination?.pages ||
@@ -168,10 +172,46 @@ export default function CoursesPage() {
     return pageNumbers;
   }, [safeCurrentPage, totalPages]);
 
-  const handleGenerateLearningPath = () => {
-    const preview = buildLearningPathPreview(courses, timeLimitHours);
-    setLearningPathPreview(preview.selectedCourses);
-    setLearningPathTotalDuration(preview.totalDuration);
+  const handleGenerateLearningPath = async () => {
+    // Try server-side recommendation first; fallback to local preview on error
+    setGenerating(true);
+    setLearningPathMessage("");
+    try {
+      const hours = Math.max(0, Number(timeLimitHours) || 0);
+      const seconds = Math.floor(hours * 3600);
+      const res = await recommendationService.generateLearningPath({
+        timeLimitSeconds: seconds,
+      });
+      if (res && Array.isArray(res.courses)) {
+        setLearningPathPreview(res.courses);
+        setLearningPathTotalDuration(res.totalDuration || 0);
+        setLearningPathMessage(
+          res.courses.length > 0
+            ? `Đã tìm thấy ${res.courses.length} khóa học phù hợp.`
+            : "Không có khóa học phù hợp với thời gian bạn nhập.",
+        );
+      } else {
+        const preview = buildLearningPathPreview(courses, timeLimitHours);
+        setLearningPathPreview(preview.selectedCourses);
+        setLearningPathTotalDuration(preview.totalDuration);
+        setLearningPathMessage(
+          preview.selectedCourses.length > 0
+            ? `Đã tạo ${preview.selectedCourses.length} khóa học xem trước.`
+            : "Không có khóa học phù hợp trong phần xem trước hiện tại.",
+        );
+      }
+    } catch (err) {
+      // fallback to client-side preview
+      console.error("Recommendation API error", err);
+      const preview = buildLearningPathPreview(courses, timeLimitHours);
+      setLearningPathPreview(preview.selectedCourses);
+      setLearningPathTotalDuration(preview.totalDuration);
+      setLearningPathMessage(
+        "Không gọi được API gợi ý, đang hiển thị xem trước cục bộ.",
+      );
+    } finally {
+      setGenerating(false);
+    }
   };
 
   const formatLearningDurationLabel = (seconds = 0) => {
@@ -346,6 +386,9 @@ export default function CoursesPage() {
                             <h3 className="line-clamp-2 min-h-14 text-lg font-bold text-slate-900 dark:text-white">
                               {course.title}
                             </h3>
+                            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                              Giảng viên: {getInstructorDisplayName(course)}
+                            </p>
 
                             <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
                               <span className="inline-flex items-center gap-1">
@@ -504,10 +547,17 @@ export default function CoursesPage() {
                 <button
                   type="button"
                   onClick={handleGenerateLearningPath}
-                  className="inline-flex h-12 w-full items-center justify-center rounded-xl bg-linear-to-r from-amber-300 via-orange-400 to-yellow-300 px-4 text-sm font-bold text-slate-900 shadow-lg shadow-amber-500/25 transition hover:-translate-y-0.5 hover:shadow-xl hover:shadow-amber-500/30"
+                  disabled={generating}
+                  className={`inline-flex h-12 w-full items-center justify-center rounded-xl bg-linear-to-r from-amber-300 via-orange-400 to-yellow-300 px-4 text-sm font-bold text-slate-900 shadow-lg shadow-amber-500/25 transition hover:-translate-y-0.5 hover:shadow-xl hover:shadow-amber-500/30 ${generating ? "opacity-60 cursor-wait" : ""}`}
                 >
-                  Generate
+                  {generating ? "Đang tạo..." : "Generate"}
                 </button>
+
+                {learningPathMessage ? (
+                  <div className="rounded-2xl border border-cyan-200 bg-cyan-50 p-4 text-sm text-cyan-900 dark:border-cyan-300/30 dark:bg-cyan-900/20 dark:text-cyan-100">
+                    {learningPathMessage}
+                  </div>
+                ) : null}
 
                 <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-300/30 dark:bg-amber-900/20 dark:text-amber-100">
                   <p className="font-semibold">Tóm tắt</p>
