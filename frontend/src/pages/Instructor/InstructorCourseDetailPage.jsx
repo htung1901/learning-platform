@@ -96,6 +96,7 @@ export default function InstructorCourseDetailPage() {
             try {
               const resp = await courseService.getCourseById(pid);
               return resp?.data || resp?.course || resp;
+            // eslint-disable-next-line no-unused-vars
             } catch (err) {
               return null;
             }
@@ -104,6 +105,7 @@ export default function InstructorCourseDetailPage() {
 
         if (cancelled) return;
         setPrereqCourses(results.filter(Boolean));
+      // eslint-disable-next-line no-unused-vars
       } catch (err) {
         if (!cancelled) setPrereqCourses([]);
       }

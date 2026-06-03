@@ -54,6 +54,14 @@ const getLessonDurationSeconds = (lesson) => {
   return hours * 3600 + minutes * 60 + seconds;
 };
 
+const sanitizeValueScoreInput = (value) => {
+  const digitsOnly = String(value ?? "").replace(/\D/g, "");
+
+  if (!digitsOnly) return "";
+
+  return String(Math.min(10, Math.max(1, Number.parseInt(digitsOnly, 10))));
+};
+
 export default function InstructorCreateCoursePage() {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuthStore();
@@ -63,7 +71,7 @@ export default function InstructorCreateCoursePage() {
   const [courseCategory, setCourseCategory] = useState("Lập trình");
   const [courseLevel, setCourseLevel] = useState("beginner");
   const [coursePrice, setCoursePrice] = useState(0);
-  const [courseValueScore, setCourseValueScore] = useState(1);
+  const [courseValueScore, setCourseValueScore] = useState("1");
   const [thumbnailUrl, setThumbnailUrl] = useState("");
   const [thumbnailFile, setThumbnailFile] = useState(null);
   const [thumbnailPreviewUrl, setThumbnailPreviewUrl] = useState("");
@@ -88,6 +96,7 @@ export default function InstructorCreateCoursePage() {
   const [searchPrerequisites, setSearchPrerequisites] = useState("");
   const [selectedPrerequisites, setSelectedPrerequisites] = useState([]);
   const [candidateCourses, setCandidateCourses] = useState([]);
+  // eslint-disable-next-line no-unused-vars
   const [searchLoading, setSearchLoading] = useState(false);
 
   const filteredCourses = candidateCourses.filter(
@@ -150,7 +159,10 @@ export default function InstructorCreateCoursePage() {
     description: courseDescription,
     level: courseLevel,
     price: Number(coursePrice) || 0,
-    valueScore: Math.min(10, Math.max(1, Number(courseValueScore) || 1)),
+    valueScore: Math.min(
+      10,
+      Math.max(1, Number.parseInt(courseValueScore, 10) || 1),
+    ),
     thumbnailUrl: thumbnailUrl.trim() || undefined,
     introVideoUrl: introVideoUrl.trim() || undefined,
     status,
@@ -179,6 +191,7 @@ export default function InstructorCreateCoursePage() {
         if (cancelled) return;
         // API returns { message, data: courses, pagination }
         setCandidateCourses(data.data || data.courses || data.docs || []);
+      // eslint-disable-next-line no-unused-vars
       } catch (err) {
         // silently ignore search errors but show toast once
         toast.error("Không thể tìm khóa học để làm điều kiện tiên quyết");
@@ -485,11 +498,7 @@ export default function InstructorCreateCoursePage() {
                       Ảnh bìa
                     </span>
                     <div className="space-y-3 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/50">
-                      <p className="text-xs text-slate-400">
-                        Ghi chú: Chọn ảnh để xem preview trước, Cloudinary chỉ
-                        được lưu khi bạn bấm Lưu nháp hoặc Gửi duyệt.
-                      </p>
-                      <div className="flex flex-wrap items-center gap-3">
+                      <div className="flex flex-wrap items-center">
                         <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-cyan-300 bg-cyan-50 px-4 py-2 text-sm font-semibold text-cyan-700 transition hover:bg-cyan-100 dark:border-cyan-700/40 dark:bg-cyan-900/20 dark:text-cyan-300">
                           <ImagePlus className="h-4 w-4" />
                           Chọn ảnh từ máy
@@ -500,28 +509,15 @@ export default function InstructorCreateCoursePage() {
                             onChange={handleThumbnailUpload}
                           />
                         </label>
-                        <input
-                          className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-cyan-400 focus:ring-4 focus:ring-cyan-200/60 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:focus:ring-cyan-500/20"
-                          placeholder="Hoặc dán link ảnh thumbnail"
-                          value={thumbnailUrl}
-                          onChange={(event) => {
-                            setThumbnailUrl(event.target.value);
-                            setThumbnailFile(null);
-                            setThumbnailPreviewUrl("");
-                          }}
-                        />
                       </div>
                     </div>
                   </label>
 
                   <label className="space-y-2 md:col-span-2">
                     <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                      Intro video YouTube unlisted (optional)
+                      Intro video (optional)
                     </span>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">
-                      Dán link YouTube ở chế độ unlisted để học viên xem trực
-                      tiếp trong bài học.
-                    </p>
+                    
                     <input
                       className={fieldClassName}
                       placeholder="https://www.youtube.com/watch?v=..."
@@ -539,38 +535,34 @@ export default function InstructorCreateCoursePage() {
                       value={calculateTotalDuration()}
                       readOnly
                     />
-                    <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                      (Tiếng Phút Giây)
-                    </span>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">
-                      Tự động cộng từ tổng thời lượng của tất cả bài học.
-                    </p>
                   </label>
 
                   <label className="space-y-2 md:col-span-2">
                     <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                      Điểm ưu tiên (Value Score)
+                      Điểm ưu tiên
                     </span>
                     <input
-                      type="number"
-                      min="1"
-                      max="10"
-                      step="1"
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      maxLength={2}
                       className={fieldClassName}
-                      placeholder="VD: 10"
+                      placeholder="Điểm ưu tiên từ 1 - 10"
                       value={courseValueScore}
-                      onChange={(e) => {
-                        const raw = Number(e.target.value) || 0;
-                        const clamped = Math.min(
-                          10,
-                          Math.max(1, Math.floor(raw)),
+                      onChange={(e) =>
+                        setCourseValueScore(
+                          sanitizeValueScoreInput(e.target.value),
+                        )
+                      }
+                      onBlur={() => {
+                        setCourseValueScore((current) =>
+                          current ? sanitizeValueScoreInput(current) : "1",
                         );
-                        setCourseValueScore(clamped);
                       }}
                     />
                     <p className="text-xs text-slate-500 dark:text-slate-400">
                       Điểm giúp hệ thống ưu tiên khóa học khi đề xuất lộ trình.
-                      Giá trị càng cao, mức ưu tiên càng lớn.
+                      Giá trị càng cao, mức ưu tiên càng lớn. Giá trị trong khoảng 1 - 10
                     </p>
                   </label>
                 </div>
@@ -1056,10 +1048,6 @@ export default function InstructorCreateCoursePage() {
               </div>
               <p className="mt-3 text-base font-semibold text-slate-900 dark:text-white">
                 {courseTitle || "Tên khóa học sẽ hiển thị ở đây"}
-              </p>
-              <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-                {courseDescription ||
-                  "Mô tả ngắn, cấp độ và thông tin giá bán."}
               </p>
               <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/70">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">

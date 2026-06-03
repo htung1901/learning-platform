@@ -21,14 +21,14 @@ function getOptionalUserId(req) {
 
 /**
  * POST /api/recommendations/learning-path
- * Body: { timeLimitSeconds }
+ * Body: { timeLimitSeconds, category }
  * Returns an ordered list of courses that fit within time limit.
  */
 export async function learningPathHandler(req, res) {
   try {
     const userId = req.user?._id || getOptionalUserId(req);
 
-    const { timeLimitSeconds = 0 } = req.body || {};
+    const { timeLimitSeconds = 0, category } = req.body || {};
 
     // Fetch enrolled course ids to exclude for logged-in users only
     const enrolledIds = userId
@@ -48,6 +48,10 @@ export async function learningPathHandler(req, res) {
 
     if (userId) {
       candidateFilter.instructorId = { $ne: userId };
+    }
+
+    if (category && category !== "Tất cả") {
+      candidateFilter.tags = category;
     }
 
     const result = await generateLearningPath({

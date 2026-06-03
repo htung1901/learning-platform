@@ -22,12 +22,32 @@ const LEVEL_OPTIONS = ["All", "Beginner", "Intermediate", "Advanced"];
 const getCourseOwnerId = (course) =>
   course?.instructorId?._id || course?.instructorId?.id || course?.instructorId;
 
+const clampLearningHours = (value) => {
+  const digitsOnly = String(value ?? "").replace(/\D/g, "");
+  if (!digitsOnly) return "";
+  return String(Math.min(150, Math.max(1, Number.parseInt(digitsOnly, 10))));
+};
+
+const limitLearningPathCourses = (courses) => courses.slice(0, 10);
+
 // Tạo lộ trình xem trước dựa trên thời lượng khóa học để hiển thị trong modal.
-const buildLearningPathPreview = (courses, timeLimitHours) => {
+const buildLearningPathPreview = (
+  courses,
+  timeLimitHours,
+  selectedCategory,
+) => {
   const limitHours = Math.max(0, Number(timeLimitHours) || 0);
   const limitSeconds = limitHours * 3600;
 
-  const sortedCourses = [...courses].sort((left, right) => {
+  const filteredCourses =
+    selectedCategory && selectedCategory !== "Tất cả"
+      ? courses.filter((course) => {
+          const courseCategory = course.category || course.tags?.[0] || "";
+          return courseCategory === selectedCategory;
+        })
+      : courses;
+
+  const sortedCourses = [...filteredCourses].sort((left, right) => {
     const leftDuration = Math.max(0, Number(left.totalDuration) || 0);
     const rightDuration = Math.max(0, Number(right.totalDuration) || 0);
     if (leftDuration !== rightDuration) return leftDuration - rightDuration;
@@ -73,6 +93,7 @@ export default function CoursesPage() {
   const [pagination, setPagination] = useState(null);
   const [isLearningPathModalOpen, setIsLearningPathModalOpen] = useState(false);
   const [timeLimitHours, setTimeLimitHours] = useState("2");
+  const [learningPathCategory, setLearningPathCategory] = useState(category);
   const [learningPathPreview, setLearningPathPreview] = useState([]);
   const [learningPathTotalDuration, setLearningPathTotalDuration] = useState(0);
   const [generating, setGenerating] = useState(false);
@@ -177,34 +198,45 @@ export default function CoursesPage() {
     setGenerating(true);
     setLearningPathMessage("");
     try {
-      const hours = Math.max(0, Number(timeLimitHours) || 0);
+      const hours = Math.min(150, Math.max(0, Number(timeLimitHours) || 0));
       const seconds = Math.floor(hours * 3600);
       const res = await recommendationService.generateLearningPath({
         timeLimitSeconds: seconds,
+        category: learningPathCategory,
       });
       if (res && Array.isArray(res.courses)) {
-        setLearningPathPreview(res.courses);
+        setLearningPathPreview(limitLearningPathCourses(res.courses));
         setLearningPathTotalDuration(res.totalDuration || 0);
         setLearningPathMessage(
           res.courses.length > 0
-            ? `Đã tìm thấy ${res.courses.length} khóa học phù hợp.`
+            ? `Đã tìm thấy ${res.courses.length} khóa học phù hợp, đang hiển thị tối đa 10 khóa học đầu tiên.`
             : "Không có khóa học phù hợp với thời gian bạn nhập.",
         );
       } else {
-        const preview = buildLearningPathPreview(courses, timeLimitHours);
-        setLearningPathPreview(preview.selectedCourses);
+        const preview = buildLearningPathPreview(
+          courses,
+          timeLimitHours,
+          learningPathCategory,
+        );
+        setLearningPathPreview(
+          limitLearningPathCourses(preview.selectedCourses),
+        );
         setLearningPathTotalDuration(preview.totalDuration);
         setLearningPathMessage(
           preview.selectedCourses.length > 0
-            ? `Đã tạo ${preview.selectedCourses.length} khóa học xem trước.`
+            ? `Đã tạo ${preview.selectedCourses.length} khóa học xem trước, đang hiển thị tối đa 10 khóa học đầu tiên.`
             : "Không có khóa học phù hợp trong phần xem trước hiện tại.",
         );
       }
     } catch (err) {
       // fallback to client-side preview
       console.error("Recommendation API error", err);
-      const preview = buildLearningPathPreview(courses, timeLimitHours);
-      setLearningPathPreview(preview.selectedCourses);
+      const preview = buildLearningPathPreview(
+        courses,
+        timeLimitHours,
+        learningPathCategory,
+      );
+      setLearningPathPreview(limitLearningPathCourses(preview.selectedCourses));
       setLearningPathTotalDuration(preview.totalDuration);
       setLearningPathMessage(
         "Không gọi được API gợi ý, đang hiển thị xem trước cục bộ.",
@@ -528,19 +560,52 @@ export default function CoursesPage() {
               <div className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50 p-5 dark:border-slate-700 dark:bg-slate-800/50">
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300">
+                    Danh mục khóa học
+                  </label>
+                  <select
+                    className="mt-2 h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-800 outline-none transition focus:border-amber-500 focus:ring-4 focus:ring-amber-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus:border-amber-400 dark:focus:ring-amber-900/40"
+                    value={learningPathCategory}
+                    onChange={(event) => {
+                      setLearningPathCategory(event.target.value);
+                      setLearningPathPreview([]);
+                    }}
+                  >
+                    {CATEGORY_OPTIONS.map((item) => (
+                      <option key={item} value={item}>
+                        {item}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                    Chỉ các khóa học thuộc danh mục này mới được đưa vào lộ
+                    trình.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300">
                     Thời gian học (giờ)
                   </label>
                   <input
-                    type="number"
-                    min="1"
-                    step="1"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={3}
                     className="mt-2 h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-800 outline-none transition focus:border-amber-500 focus:ring-4 focus:ring-amber-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus:border-amber-400 dark:focus:ring-amber-900/40"
                     placeholder="VD: 2"
                     value={timeLimitHours}
-                    onChange={(event) => setTimeLimitHours(event.target.value)}
+                    onChange={(event) =>
+                      setTimeLimitHours(clampLearningHours(event.target.value))
+                    }
+                    onBlur={() => {
+                      setTimeLimitHours((current) =>
+                        current ? clampLearningHours(current) : "1",
+                      );
+                    }}
                   />
                   <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
                     Dùng để lọc một lộ trình phù hợp với quỹ thời gian của bạn.
+                    Tối đa 150 giờ.
                   </p>
                 </div>
 

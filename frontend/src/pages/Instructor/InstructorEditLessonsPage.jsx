@@ -75,6 +75,14 @@ const parseDuration = (value) => {
   return Number(value) || 0;
 };
 
+const sanitizeValueScoreInput = (value) => {
+  const digitsOnly = String(value ?? "").replace(/\D/g, "");
+
+  if (!digitsOnly) return "";
+
+  return String(Math.min(10, Math.max(1, Number.parseInt(digitsOnly, 10))));
+};
+
 export default function InstructorEditLessonsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -88,7 +96,7 @@ export default function InstructorEditLessonsPage() {
   const [courseCategory, setCourseCategory] = useState("Lập trình");
   const [courseLevel, setCourseLevel] = useState("beginner");
   const [coursePrice, setCoursePrice] = useState(0);
-  const [courseValueScore, setCourseValueScore] = useState(1);
+  const [courseValueScore, setCourseValueScore] = useState("1");
   const [thumbnailUrl, setThumbnailUrl] = useState("");
   const [thumbnailFile, setThumbnailFile] = useState(null);
   const [thumbnailPreviewUrl, setThumbnailPreviewUrl] = useState("");
@@ -132,7 +140,7 @@ export default function InstructorEditLessonsPage() {
         setThumbnailPreviewUrl("");
         setIntroVideoUrl(data.introVideoUrl || "");
         setHasPrerequisites((data.prerequisites || []).length > 0);
-        setCourseValueScore(data.valueScore || 1);
+        setCourseValueScore(String(data.valueScore ?? 1));
         // Prefill selectedPrerequisites by fetching each prerequisite course
         const prereqIds = data.prerequisites || [];
         if (prereqIds.length > 0) {
@@ -350,7 +358,10 @@ export default function InstructorEditLessonsPage() {
     introVideoUrl: introVideoUrl.trim() || undefined,
     // send prerequisite IDs to backend
     prerequisites: selectedPrerequisites.map((item) => item._id || item.id),
-    valueScore: Math.min(10, Math.max(1, Number(courseValueScore) || 1)),
+    valueScore: Math.min(
+      10,
+      Math.max(1, Number.parseInt(courseValueScore, 10) || 1),
+    ),
     tags: courseCategory ? [courseCategory] : [],
   });
 
@@ -571,17 +582,20 @@ export default function InstructorEditLessonsPage() {
               Điểm ưu tiên (Value Score)
             </span>
             <input
-              type="number"
-              min="1"
-              max="10"
-              step="1"
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              maxLength={2}
               className={fieldClassName}
               placeholder="VD: 10"
               value={courseValueScore}
-              onChange={(e) => {
-                const raw = Number(e.target.value) || 0;
-                const clamped = Math.min(10, Math.max(1, Math.floor(raw)));
-                setCourseValueScore(clamped);
+              onChange={(e) =>
+                setCourseValueScore(sanitizeValueScoreInput(e.target.value))
+              }
+              onBlur={() => {
+                setCourseValueScore((current) =>
+                  current ? sanitizeValueScoreInput(current) : "1",
+                );
               }}
             />
             <p className="text-xs text-slate-500 dark:text-slate-400">
