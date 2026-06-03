@@ -645,7 +645,7 @@ export default function CoursesPage() {
                 </div>
 
                 {learningPathPreview.length > 0 ? (
-                  <div className="max-h-160 space-y-3 overflow-y-auto pr-1">
+                  <div className="max-h-112 space-y-3 overflow-y-auto pr-2 lp-results-scroll">
                     {learningPathPreview.map((course, index) => (
                       <article
                         key={course._id}
