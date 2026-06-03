@@ -56,13 +56,21 @@ export const createCourseValidator = (req, res, next) => {
     return res.status(400).json({ message: "price phải là số" });
   }
 
+  if (req.body.valueScore !== undefined) {
+    const vs = Number(req.body.valueScore);
+    if (Number.isNaN(vs) || vs < 1 || vs > 10) {
+      return res
+        .status(400)
+        .json({ message: "valueScore phải là số nguyên từ 1 đến 10" });
+    }
+    req.body.valueScore = Math.floor(vs);
+  }
+
   const normalizedPrerequisites = normalizeArray(prerequisites);
   if (normalizedPrerequisites === null) {
-    return res
-      .status(400)
-      .json({
-        message: "prerequisites phải là mảng hoặc chuỗi phân tách bởi dấu phẩy",
-      });
+    return res.status(400).json({
+      message: "prerequisites phải là mảng hoặc chuỗi phân tách bởi dấu phẩy",
+    });
   }
 
   const normalizedTags = normalizeArray(tags);
@@ -124,6 +132,16 @@ export const updateCourseValidator = (req, res, next) => {
 
   if (price !== undefined && Number.isNaN(Number(price))) {
     return res.status(400).json({ message: "price phải là số" });
+  }
+
+  if (req.body.valueScore !== undefined) {
+    const vs = Number(req.body.valueScore);
+    if (Number.isNaN(vs) || vs < 1 || vs > 10) {
+      return res
+        .status(400)
+        .json({ message: "valueScore phải là số nguyên từ 1 đến 10" });
+    }
+    req.body.valueScore = Math.floor(vs);
   }
 
   const normalizedPrerequisites = normalizeArray(prerequisites);

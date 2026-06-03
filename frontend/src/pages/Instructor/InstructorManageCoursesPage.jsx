@@ -119,10 +119,11 @@ export default function InstructorManageCoursesPage() {
       </section>
 
       <section className="overflow-hidden rounded-3xl border border-white/10 bg-white/6 shadow-2xl backdrop-blur-xl">
-        <div className="grid grid-cols-[2fr_0.7fr_0.7fr_0.7fr_0.8fr_0.9fr] gap-0 border-b border-white/10 px-5 py-4 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+        <div className="grid grid-cols-[2fr_0.7fr_0.7fr_0.6fr_0.7fr_0.8fr_0.9fr] gap-0 border-b border-white/10 px-5 py-4 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
           <div>Khóa học</div>
           <div>Học viên</div>
           <div>Rating</div>
+          <div>Điểm ưu tiên</div>
           <div>Giá</div>
           <div>Trạng thái</div>
           <div className="text-right">Hành động</div>
@@ -151,7 +152,7 @@ export default function InstructorManageCoursesPage() {
               return (
                 <div
                   key={course._id}
-                  className="grid grid-cols-1 gap-4 px-5 py-5 lg:grid-cols-[2fr_0.7fr_0.7fr_0.7fr_0.8fr_0.9fr] lg:items-center"
+                  className="grid grid-cols-1 gap-4 px-5 py-5 lg:grid-cols-[2fr_0.7fr_0.7fr_0.6fr_0.7fr_0.8fr_0.9fr] lg:items-center"
                 >
                   <div className="flex items-center gap-4">
                     <img
@@ -189,6 +190,12 @@ export default function InstructorManageCoursesPage() {
                     </div>
                   )}
                   {status === "Draft" && <div />}
+
+                  <div className="text-sm text-slate-300">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-white/5 px-3 py-1">
+                      {course?.valueScore ?? "-"}
+                    </span>
+                  </div>
 
                   <div className="text-sm font-semibold text-white">
                     {formatPrice(course.price)}

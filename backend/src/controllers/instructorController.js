@@ -67,6 +67,7 @@ export const createCourse = async (req, res) => {
       prerequisites,
       tags,
       status,
+      valueScore,
     } = req.body;
 
     const existing = await Course.findOne({
@@ -97,6 +98,7 @@ export const createCourse = async (req, res) => {
       submittedAt: finalStatus === "pending" ? new Date() : undefined,
       prerequisites: prerequisites || [],
       tags: tags || [],
+      valueScore: Math.min(10, Math.max(1, Number(valueScore) || 1)),
     });
 
     return res.status(201).json({
@@ -192,6 +194,7 @@ export const updateMyCourse = async (req, res) => {
       "price",
       "prerequisites",
       "tags",
+      "valueScore",
     ];
 
     fields.forEach((field) => {

@@ -306,6 +306,10 @@ export default function InstructorCourseDetailPage() {
                   </span>
                 </li>
                 <li className="flex items-center gap-3">
+                  <Star className="h-4 w-4 text-amber-300" />
+                  <span>Điểm ưu tiên: {course?.valueScore ?? "-"}</span>
+                </li>
+                <li className="flex items-center gap-3">
                   <MessageSquare className="h-4 w-4 text-amber-300" />
                   <span>Trạng thái: {status}</span>
                 </li>
