@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
@@ -21,39 +21,14 @@ import {
   Wallet,
 } from "lucide-react";
 import { toast } from "sonner";
+import courseService from "../../services/courseService";
 import { useAuthStore } from "../../store/authStore";
 import { instructorService } from "../../services/instructorService";
 
 const fieldClassName =
   "w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-cyan-400 focus:ring-4 focus:ring-cyan-200/60 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:focus:ring-cyan-500/20";
 
-const APPROVED_COURSES = [
-  {
-    id: 1,
-    title: "HTML & CSS Cơ bản",
-    category: "Lập trình",
-    level: "Beginner",
-  },
-  {
-    id: 2,
-    title: "JavaScript Nâng cao",
-    category: "Lập trình",
-    level: "Intermediate",
-  },
-  { id: 3, title: "React Cơ bản", category: "Lập trình", level: "Beginner" },
-  {
-    id: 4,
-    title: "Node.js & Express",
-    category: "Lập trình",
-    level: "Intermediate",
-  },
-  {
-    id: 5,
-    title: "Figma - Thiết kế UI/UX",
-    category: "Thiết kế",
-    level: "Beginner",
-  },
-];
+// Candidate courses will be fetched from the API for prerequisite selection
 
 const formatDurationLabel = (totalSeconds = 0) => {
   const secondsValue = Math.max(0, Number(totalSeconds) || 0);
@@ -112,11 +87,15 @@ export default function InstructorCreateCoursePage() {
   const [hasPrerequisites, setHasPrerequisites] = useState(false);
   const [searchPrerequisites, setSearchPrerequisites] = useState("");
   const [selectedPrerequisites, setSelectedPrerequisites] = useState([]);
+  const [candidateCourses, setCandidateCourses] = useState([]);
+  const [searchLoading, setSearchLoading] = useState(false);
 
-  const filteredCourses = APPROVED_COURSES.filter(
+  const filteredCourses = candidateCourses.filter(
     (course) =>
       course.title.toLowerCase().includes(searchPrerequisites.toLowerCase()) &&
-      !selectedPrerequisites.find((p) => p.id === course.id),
+      !selectedPrerequisites.find(
+        (p) => (p._id || p.id) === (course._id || course.id),
+      ),
   );
 
   const handleAddPrerequisite = (course) => {
@@ -126,7 +105,7 @@ export default function InstructorCreateCoursePage() {
 
   const handleRemovePrerequisite = (courseId) => {
     setSelectedPrerequisites((prev) =>
-      prev.filter((course) => course.id !== courseId),
+      prev.filter((course) => (course._id || course.id) !== courseId),
     );
   };
 
@@ -175,9 +154,45 @@ export default function InstructorCreateCoursePage() {
     thumbnailUrl: thumbnailUrl.trim() || undefined,
     introVideoUrl: introVideoUrl.trim() || undefined,
     status,
-    prerequisites: selectedPrerequisites.map((item) => item.title),
+    // store prerequisite course IDs (ObjectId) for backend
+    prerequisites: selectedPrerequisites.map((item) => item._id || item.id),
     tags: courseCategory ? [courseCategory] : [],
   });
+
+  // Fetch candidate published courses for the prerequisite search (debounced)
+  useEffect(() => {
+    let cancelled = false;
+    let timer = null;
+
+    const doSearch = async () => {
+      if (!searchPrerequisites || searchPrerequisites.trim().length < 2) {
+        setCandidateCourses([]);
+        return;
+      }
+
+      try {
+        setSearchLoading(true);
+        const data = await courseService.getPublishedCourses({
+          q: searchPrerequisites.trim(),
+          limit: 50,
+        });
+        if (cancelled) return;
+        // API returns { message, data: courses, pagination }
+        setCandidateCourses(data.data || data.courses || data.docs || []);
+      } catch (err) {
+        // silently ignore search errors but show toast once
+        toast.error("Không thể tìm khóa học để làm điều kiện tiên quyết");
+      } finally {
+        if (!cancelled) setSearchLoading(false);
+      }
+    };
+
+    timer = setTimeout(doSearch, 300);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [searchPrerequisites]);
 
   const persistDraftCourse = async () => {
     if (!courseTitle.trim()) {
@@ -619,7 +634,7 @@ export default function InstructorCreateCoursePage() {
                       <div className="max-h-48 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/50">
                         {filteredCourses.map((course) => (
                           <button
-                            key={course.id}
+                            key={course._id || course.id}
                             type="button"
                             onClick={() => handleAddPrerequisite(course)}
                             className="w-full border-b border-slate-200 px-4 py-3 text-left transition hover:bg-cyan-50 dark:border-slate-700 dark:hover:bg-cyan-900/20"
@@ -649,7 +664,7 @@ export default function InstructorCreateCoursePage() {
                         <div className="space-y-2">
                           {selectedPrerequisites.map((course) => (
                             <div
-                              key={course.id}
+                              key={course._id || course.id}
                               className="flex items-center justify-between rounded-lg border border-cyan-200 bg-cyan-50 px-4 py-3 dark:border-cyan-900/30 dark:bg-cyan-900/20"
                             >
                               <div>
@@ -663,7 +678,9 @@ export default function InstructorCreateCoursePage() {
                               <button
                                 type="button"
                                 onClick={() =>
-                                  handleRemovePrerequisite(course.id)
+                                  handleRemovePrerequisite(
+                                    course._id || course.id,
+                                  )
                                 }
                                 className="ml-2 rounded-lg p-1 text-slate-600 transition hover:bg-red-100 hover:text-red-600 dark:text-slate-400 dark:hover:bg-red-900/20"
                               >

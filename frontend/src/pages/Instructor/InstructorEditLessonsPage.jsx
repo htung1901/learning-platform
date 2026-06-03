@@ -16,6 +16,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { toast } from "sonner";
+import courseService from "../../services/courseService";
 import { useAuthStore } from "../../store/authStore";
 import { instructorService } from "../../services/instructorService";
 
@@ -94,18 +95,23 @@ export default function InstructorEditLessonsPage() {
   const [hasPrerequisites, setHasPrerequisites] = useState(false);
   const [searchPrerequisites, setSearchPrerequisites] = useState("");
   const [selectedPrerequisites, setSelectedPrerequisites] = useState([]);
+  const [candidateCourses, setCandidateCourses] = useState([]);
+  const [searchLoading, setSearchLoading] = useState(false);
   const [lessons, setLessons] = useState([]);
   const [removedLessonIds, setRemovedLessonIds] = useState([]);
 
   const filteredCourses = useMemo(() => {
-    return APPROVED_COURSES.filter(
+    return candidateCourses.filter(
       (approvedCourse) =>
-        approvedCourse.title
+        (approvedCourse.title || "")
           .toLowerCase()
-          .includes(searchPrerequisites.toLowerCase()) &&
-        !selectedPrerequisites.find((item) => item.id === approvedCourse.id),
+          .includes((searchPrerequisites || "").toLowerCase()) &&
+        !selectedPrerequisites.find(
+          (item) =>
+            (item._id || item.id) === (approvedCourse._id || approvedCourse.id),
+        ),
     );
-  }, [searchPrerequisites, selectedPrerequisites]);
+  }, [searchPrerequisites, selectedPrerequisites, candidateCourses]);
 
   useEffect(() => {
     const fetchCourse = async () => {
@@ -125,11 +131,29 @@ export default function InstructorEditLessonsPage() {
         setThumbnailPreviewUrl("");
         setIntroVideoUrl(data.introVideoUrl || "");
         setHasPrerequisites((data.prerequisites || []).length > 0);
-        setSelectedPrerequisites(
-          APPROVED_COURSES.filter((courseItem) =>
-            (data.prerequisites || []).includes(courseItem.title),
-          ),
-        );
+        // Prefill selectedPrerequisites by fetching each prerequisite course
+        const prereqIds = data.prerequisites || [];
+        if (prereqIds.length > 0) {
+          try {
+            const fetched = await Promise.all(
+              prereqIds.map(async (pid) => {
+                try {
+                  const resp = await courseService.getCourseById(pid);
+                  // courseService returns response.data which may contain { message, data }
+                  return resp.data || resp.course || resp;
+                } catch (err) {
+                  return null;
+                }
+              }),
+            );
+            const valid = fetched.filter(Boolean);
+            setSelectedPrerequisites(valid);
+          } catch (err) {
+            // ignore
+          }
+        } else {
+          setSelectedPrerequisites([]);
+        }
         setLessons(
           (data.lessons || []).length > 0
             ? data.lessons.map((lesson, index) => {
@@ -190,7 +214,7 @@ export default function InstructorEditLessonsPage() {
 
   const handleRemovePrerequisite = (courseId) => {
     setSelectedPrerequisites((prev) =>
-      prev.filter((item) => item.id !== courseId),
+      prev.filter((item) => (item._id || item.id) !== courseId),
     );
   };
 
@@ -322,9 +346,43 @@ export default function InstructorEditLessonsPage() {
     price: Number(coursePrice) || 0,
     thumbnailUrl: thumbnailUrl.trim() || undefined,
     introVideoUrl: introVideoUrl.trim() || undefined,
-    prerequisites: selectedPrerequisites.map((item) => item.title),
+    // send prerequisite IDs to backend
+    prerequisites: selectedPrerequisites.map((item) => item._id || item.id),
     tags: courseCategory ? [courseCategory] : [],
   });
+
+  // Debounced search for candidate courses
+  useEffect(() => {
+    let cancelled = false;
+    let timer = null;
+
+    const doSearch = async () => {
+      if (!searchPrerequisites || searchPrerequisites.trim().length < 2) {
+        setCandidateCourses([]);
+        return;
+      }
+
+      try {
+        setSearchLoading(true);
+        const data = await courseService.getPublishedCourses({
+          q: searchPrerequisites.trim(),
+          limit: 50,
+        });
+        if (cancelled) return;
+        setCandidateCourses(data.data || data.courses || data.docs || []);
+      } catch (err) {
+        toast.error("Không thể tìm khóa học để làm điều kiện tiên quyết");
+      } finally {
+        if (!cancelled) setSearchLoading(false);
+      }
+    };
+
+    timer = setTimeout(doSearch, 300);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [searchPrerequisites]);
 
   const handleSaveAll = async () => {
     if (!id) {

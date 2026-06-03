@@ -17,6 +17,7 @@ import {
 import { toast } from "sonner";
 import { useAuthStore } from "../../store/authStore";
 import { instructorService } from "../../services/instructorService";
+import courseService from "../../services/courseService";
 
 const formatPrice = (value) => {
   const numeric = Number(value) || 0;
@@ -56,6 +57,7 @@ export default function InstructorCourseDetailPage() {
   const [course, setCourse] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [prereqCourses, setPrereqCourses] = useState([]);
 
   useEffect(() => {
     const fetchCourse = async () => {
@@ -78,6 +80,40 @@ export default function InstructorCourseDetailPage() {
 
     fetchCourse();
   }, [id, isAuthenticated]);
+
+  // Fetch prerequisite course details (if any) so we can display titles
+  useEffect(() => {
+    let cancelled = false;
+    const fetchPrereqs = async () => {
+      if (!course?.prerequisites || course.prerequisites.length === 0) {
+        setPrereqCourses([]);
+        return;
+      }
+
+      try {
+        const results = await Promise.all(
+          course.prerequisites.map(async (pid) => {
+            try {
+              const resp = await courseService.getCourseById(pid);
+              return resp?.data || resp?.course || resp;
+            } catch (err) {
+              return null;
+            }
+          }),
+        );
+
+        if (cancelled) return;
+        setPrereqCourses(results.filter(Boolean));
+      } catch (err) {
+        if (!cancelled) setPrereqCourses([]);
+      }
+    };
+
+    fetchPrereqs();
+    return () => {
+      cancelled = true;
+    };
+  }, [course?.prerequisites]);
 
   const lessons = useMemo(() => course?.lessons || [], [course]);
   const status = normalizeStatus(course?.status);
@@ -276,6 +312,41 @@ export default function InstructorCourseDetailPage() {
               </ul>
             </div>
           </div>
+
+          {prereqCourses.length > 0 && (
+            <div>
+              <h2 className="mb-4 text-lg font-bold text-white">
+                Điều kiện tiên quyết
+              </h2>
+              <div className="space-y-2 rounded-2xl border border-white/10 bg-white/5 p-6">
+                {prereqCourses.map((pc) => (
+                  <div
+                    key={pc._id || pc.id}
+                    className="flex items-center justify-between rounded-lg border border-white/10 bg-white/5 p-3"
+                  >
+                    <div>
+                      <p className="text-sm font-semibold text-white">
+                        {pc.title}
+                      </p>
+                      <p className="mt-0.5 text-xs text-slate-300">
+                        {(pc.tags && pc.tags[0]) || pc.category || "Tổng quát"}{" "}
+                        • {pc.level}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        navigate(`/dashboard/courses/manage/${pc._id || pc.id}`)
+                      }
+                      className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-semibold text-slate-200 transition hover:bg-white/10"
+                    >
+                      Xem
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div>
             <h2 className="mb-4 text-lg font-bold text-white">
