@@ -99,9 +99,12 @@ function buildBundles(courses) {
 /**
  * Convert seconds to knapsack minutes so the DP works on a smaller scale.
  * We round up to avoid undercounting short lessons.
+ * If seconds is 0, return 0 (no time available).
  */
 function toKnapsackMinutes(seconds) {
-  return Math.max(1, Math.ceil((Number(seconds) || 0) / 60));
+  const s = Number(seconds) || 0;
+  if (s === 0) return 0; // Special case: no time available
+  return Math.max(1, Math.ceil(s / 60));
 }
 
 /**
@@ -133,14 +136,27 @@ function selectBundlesDP(bundles, capacityMinutes) {
       j -= w[i];
     }
   }
-  // Combine chosen bundles into course set, preserving topo ordering later
+  // Combine chosen bundles into course set, ensuring no course is double-counted
   const chosenCourseIds = new Set();
   let totalDuration = 0;
   let totalValue = 0;
   for (const idx of chosen) {
-    for (const cid of bundles[idx].ids) chosenCourseIds.add(cid);
-    totalDuration += bundles[idx].duration;
-    totalValue += bundles[idx].value;
+    // Check if any course in this bundle is already selected
+    let hasOverlap = false;
+    for (const cid of bundles[idx].ids) {
+      if (chosenCourseIds.has(cid)) {
+        hasOverlap = true;
+        break;
+      }
+    }
+    // Only add bundle if no courses overlap with already-selected ones
+    if (!hasOverlap) {
+      for (const cid of bundles[idx].ids) {
+        chosenCourseIds.add(cid);
+      }
+      totalDuration += bundles[idx].duration;
+      totalValue += bundles[idx].value;
+    }
   }
   return { chosenCourseIds, totalDuration, totalValue };
 }
@@ -174,11 +190,17 @@ function heuristicSelect(bundles, capacityMinutes) {
 /**
  * Main entry: generate learning path for a user given time limit (seconds).
  * Filters: only approved courses, excludes instructor-owned and enrolled courses (caller handles filter)
+ * Returns empty if time limit < 60 seconds (1 minute minimum).
  */
 export async function generateLearningPath({
   candidateFilter = {},
   timeLimitSeconds = 0,
 }) {
+  // Early return for insufficient time
+  if (timeLimitSeconds < 60) {
+    return { coursesOrdered: [], totalDuration: 0, totalValue: 0 };
+  }
+
   // Fetch candidate courses
   const courses = await Course.find(candidateFilter).lean();
   if (!courses || courses.length === 0)

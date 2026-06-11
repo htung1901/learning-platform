@@ -50,8 +50,9 @@ export async function learningPathHandler(req, res) {
       candidateFilter.instructorId = { $ne: userId };
     }
 
+    // Filter by category: match courses where tags array contains the category string
     if (category && category !== "Tất cả") {
-      candidateFilter.tags = category;
+      candidateFilter.tags = { $in: [category] };
     }
 
     const result = await generateLearningPath({

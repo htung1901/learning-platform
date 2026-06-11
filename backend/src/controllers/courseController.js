@@ -19,7 +19,8 @@ export const getPublishedCourses = async (req, res) => {
       ];
     }
 
-    if (category) query.category = category;
+    // Filter by category: match courses where tags array contains the category string
+    if (category) query.tags = { $in: [category] };
     if (level) query.level = level;
 
     const [courses, total] = await Promise.all([
