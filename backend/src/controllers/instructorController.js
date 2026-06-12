@@ -461,16 +461,74 @@ export const getDashboardStats = async (req, res) => {
   try {
     const instructorId = req.user._id;
 
-    const courses = await Course.find({ instructorId }).select("_id");
+    const courses = await Course.find({ instructorId })
+      .select("_id title status")
+      .sort({ createdAt: -1 })
+      .lean();
     const courseIds = courses.map((course) => course._id);
 
-    const totalStudents = await Enrollment.countDocuments({
-      courseId: { $in: courseIds },
+    const enrollmentStats = await Enrollment.aggregate([
+      {
+        $match: {
+          courseId: { $in: courseIds },
+        },
+      },
+      {
+        $group: {
+          _id: {
+            courseId: "$courseId",
+            status: "$status",
+          },
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+
+    const courseStatsMap = new Map(
+      courses.map((course) => [
+        String(course._id),
+        {
+          courseId: course._id,
+          title: course.title,
+          status: course.status,
+          buyers: 0,
+          learning: 0,
+          completed: 0,
+        },
+      ]),
+    );
+
+    enrollmentStats.forEach((item) => {
+      const courseKey = String(item._id.courseId);
+      const courseStat = courseStatsMap.get(courseKey);
+      if (!courseStat) {
+        return;
+      }
+
+      const { status } = item._id;
+      const count = item.count || 0;
+
+      if (status === "active") {
+        courseStat.buyers += count;
+        courseStat.learning = count;
+      }
+
+      if (status === "completed") {
+        courseStat.buyers += count;
+        courseStat.completed = count;
+      }
     });
+
+    const courseStats = Array.from(courseStatsMap.values());
+    const totalStudents = courseStats.reduce(
+      (sum, course) => sum + course.buyers,
+      0,
+    );
 
     return res.status(200).json({
       totalStudents,
       totalCourses: courses.length,
+      courseStats,
     });
   } catch (error) {
     console.error("Lỗi khi lấy thống kê dashboard", error);
