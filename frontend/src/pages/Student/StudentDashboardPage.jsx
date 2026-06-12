@@ -132,6 +132,7 @@ export default function StudentDashboardPage() {
 
   const weeklyGoal = 5;
   const completedThisWeek = completedCourses.length;
+  // eslint-disable-next-line no-unused-vars
   const weeklyProgress = Math.min(
     100,
     Math.round((completedThisWeek / weeklyGoal) * 100),
@@ -176,7 +177,7 @@ export default function StudentDashboardPage() {
             },
             {
               id: "completed",
-              label: "Khóa học đã hoàn thành",
+              label: "Khóa học đã hoàn th",
               value: completedCourses.length,
               accent: "from-amber-500 to-orange-500",
             },
