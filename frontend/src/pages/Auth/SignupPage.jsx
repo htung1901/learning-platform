@@ -20,8 +20,11 @@ export default function SignupPage() {
   const handleSubmit = async (data) => {
     const success = await signup(data);
     if (success) {
+      const currentUser = useAuthStore.getState().user;
       const nextRoute =
-        data.role === "student" ? ROUTES.STUDENT_DASHBOARD : ROUTES.DASHBOARD;
+        currentUser?.role === "student"
+          ? ROUTES.STUDENT_DASHBOARD
+          : ROUTES.DASHBOARD;
       navigate(nextRoute);
     }
   };
@@ -29,7 +32,7 @@ export default function SignupPage() {
   return (
     <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
       {/* Background Gradients */}
-      <div className="absolute inset-0 bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950"></div>
+      <div className="absolute inset-0 bg-linear-to-br from-purple-50 via-blue-50 to-pink-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950"></div>
       <div className="absolute top-0 -left-40 w-80 h-80 bg-purple-300 dark:bg-purple-900/20 rounded-full filter blur-3xl opacity-20 animate-pulse"></div>
       <div
         className="absolute bottom-0 -right-40 w-80 h-80 bg-pink-300 dark:bg-pink-900/20 rounded-full filter blur-3xl opacity-20 animate-pulse"
@@ -41,10 +44,10 @@ export default function SignupPage() {
         <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl rounded-2xl shadow-2xl p-8 border border-white/50 dark:border-slate-700/50">
           {/* Header */}
           <div className="text-center mb-8">
-            <div className="w-14 h-14 bg-gradient-to-br from-purple-600 to-pink-600 rounded-lg flex items-center justify-center mx-auto mb-4 shadow-lg">
+            <div className="w-14 h-14 bg-linear-to-br from-purple-600 to-pink-600 rounded-lg flex items-center justify-center mx-auto mb-4 shadow-lg">
               <span className="text-white text-2xl font-bold">E</span>
             </div>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+            <h1 className="text-3xl font-bold bg-linear-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
               Đăng ký
             </h1>
             <p className="text-slate-600 dark:text-slate-400 mt-2">

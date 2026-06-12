@@ -10,9 +10,6 @@ export const loginSchema = z.object({
     .string()
     .min(6, FORM_MESSAGES.PASSWORD_MIN)
     .min(1, FORM_MESSAGES.PASSWORD_REQUIRED),
-  role: z.enum(["student", "instructor"], {
-    errorMap: () => ({ message: "Vui lòng chọn vai trò" }),
-  }),
 });
 
 export const signupSchema = z
@@ -30,9 +27,6 @@ export const signupSchema = z
       .string()
       .min(6, FORM_MESSAGES.PASSWORD_MIN)
       .min(1, FORM_MESSAGES.PASSWORD_REQUIRED),
-    role: z.enum(["student", "instructor"], {
-      errorMap: () => ({ message: "Vui lòng chọn vai trò" }),
-    }),
     confirmPassword: z.string(),
   })
   .refine((data) => data.password === data.confirmPassword, {

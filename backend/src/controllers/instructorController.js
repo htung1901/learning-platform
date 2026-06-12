@@ -480,6 +480,7 @@ export const getDashboardStats = async (req, res) => {
             status: "$status",
           },
           count: { $sum: 1 },
+          revenue: { $sum: { $ifNull: ["$amount", 0] } },
         },
       },
     ]);
@@ -494,6 +495,7 @@ export const getDashboardStats = async (req, res) => {
           buyers: 0,
           learning: 0,
           completed: 0,
+          revenue: 0,
         },
       ]),
     );
@@ -507,15 +509,18 @@ export const getDashboardStats = async (req, res) => {
 
       const { status } = item._id;
       const count = item.count || 0;
+      const revenue = item.revenue || 0;
 
       if (status === "active") {
         courseStat.buyers += count;
         courseStat.learning = count;
+        courseStat.revenue += revenue;
       }
 
       if (status === "completed") {
         courseStat.buyers += count;
         courseStat.completed = count;
+        courseStat.revenue += revenue;
       }
     });
 
@@ -524,10 +529,15 @@ export const getDashboardStats = async (req, res) => {
       (sum, course) => sum + course.buyers,
       0,
     );
+    const totalRevenue = courseStats.reduce(
+      (sum, course) => sum + course.revenue,
+      0,
+    );
 
     return res.status(200).json({
       totalStudents,
       totalCourses: courses.length,
+      totalRevenue,
       courseStats,
     });
   } catch (error) {

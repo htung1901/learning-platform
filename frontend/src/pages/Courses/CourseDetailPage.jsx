@@ -103,9 +103,7 @@ export default function CourseDetailPage() {
         <section className="overflow-hidden rounded-3xl border border-white/60 bg-white/80 shadow-xl backdrop-blur-xl dark:border-slate-700/60 dark:bg-slate-900/70">
           <div className="grid gap-6 p-6 lg:grid-cols-[1.1fr_0.9fr] lg:p-8">
             <div>
-              <p className="mb-3 inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-200">
-                {course.category || "Chung"} • {course.level || "beginner"}
-              </p>
+              
               <h1 className="text-3xl font-black tracking-tight text-slate-900 sm:text-4xl dark:text-white">
                 {course.title}
               </h1>
@@ -128,17 +126,7 @@ export default function CourseDetailPage() {
                 </span>
               </div>
 
-              <div className="mt-8 grid gap-3 sm:grid-cols-2">
-                {outcomes.map((item) => (
-                  <div
-                    key={item}
-                    className="flex items-start gap-2 rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
-                  >
-                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
-                    <span>{item}</span>
-                  </div>
-                ))}
-              </div>
+              
             </div>
 
             <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
