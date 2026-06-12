@@ -150,30 +150,12 @@ export default function StudentDashboardPage() {
             <div>
               <p className="mb-2 inline-flex items-center gap-2 rounded-full bg-orange-100 px-3 py-1 text-xs font-semibold text-orange-700 dark:bg-orange-900/30 dark:text-orange-300">
                 <Flame className="h-3.5 w-3.5" />
-                Student Dashboard
+                Khóa học của tôi
               </p>
               <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl dark:text-white">
-                Xin chao, {user?.displayName || user?.username || "Student"}
+                Xin chào, {user?.displayName || user?.username || "Student"}
               </h1>
-              <p className="mt-2 max-w-2xl text-slate-600 dark:text-slate-300">
-                Day la khu vuc hoc tap danh cho Student. Theo doi tien do va
-                tiep tuc cac bai hoc dang lam do ngay ben duoi.
-              </p>
-            </div>
-
-            <div className="w-full max-w-sm rounded-2xl border border-cyan-200 bg-cyan-50 p-4 dark:border-cyan-900/50 dark:bg-cyan-900/20">
-              <div className="mb-3 flex items-center justify-between text-sm font-semibold text-cyan-800 dark:text-cyan-300">
-                <span>Muc tieu tuan nay</span>
-                <span>
-                  {completedThisWeek}/{weeklyGoal}
-                </span>
-              </div>
-              <div className="h-2.5 overflow-hidden rounded-full bg-cyan-100 dark:bg-cyan-950/40">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-blue-500"
-                  style={{ width: `${weeklyProgress}%` }}
-                />
-              </div>
+              
             </div>
           </div>
         </section>
@@ -182,19 +164,19 @@ export default function StudentDashboardPage() {
           {[
             {
               id: "enrolled",
-              label: "Tat ca khoa hoc da mua",
+              label: "Tất cả khóa học đã mua",
               value: courses.length,
               accent: "from-cyan-500 to-blue-500",
             },
             {
               id: "in-progress",
-              label: "Khoa hoc dang hoc",
+              label: "Khóa học đang học",
               value: inProgressCourses.length,
               accent: "from-emerald-500 to-teal-500",
             },
             {
               id: "completed",
-              label: "Khoa hoc da hoan thanh",
+              label: "Khóa học đã hoàn thành",
               value: completedCourses.length,
               accent: "from-amber-500 to-orange-500",
             },
@@ -221,7 +203,7 @@ export default function StudentDashboardPage() {
         <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="text-xl font-bold text-slate-900 dark:text-white">
-              Khoa hoc cua toi
+              Khóa học của tôi
             </h2>
             <div className="flex items-center gap-2">
               <button
@@ -244,7 +226,7 @@ export default function StudentDashboardPage() {
                 to={ROUTES.AVAILABLE_COURSES}
                 className="inline-flex items-center gap-1 text-sm font-semibold text-cyan-600 hover:text-cyan-700 dark:text-cyan-400"
               >
-                Xem them khoa hoc
+                Xem thêm khóa học khác
                 <ArrowRight className="h-4 w-4" />
               </Link>
             </div>

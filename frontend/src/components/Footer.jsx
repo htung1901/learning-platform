@@ -36,7 +36,7 @@ export default function Footer() {
               </div>
               <div className="flex items-center gap-3 text-sm text-slate-400 hover:text-blue-400 transition-colors cursor-pointer">
                 <MapPin size={16} className="flex-shrink-0" />
-                <span>TP. Hồ Chí Minh, Việt Nam</span>
+                <span>Hà Nội, Việt Nam</span>
               </div>
             </div>
           </div>

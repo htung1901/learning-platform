@@ -134,7 +134,7 @@ export default function Header() {
           <nav className="hidden md:flex items-center gap-8">
             {!isInstructor && !isAdmin && (
               <>
-                {renderDesktopNavItem(ROUTES.HOME, "Home", true)}
+                {renderDesktopNavItem(ROUTES.HOME, "Trang chủ", true)}
                 {renderDesktopNavItem(ROUTES.COURSES, "Khóa học")}
                 {isStudent &&
                   renderDesktopNavItem(

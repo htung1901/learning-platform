@@ -12,6 +12,7 @@ import {
   deleteLesson,
   deleteMyCourse,
 } from "../controllers/instructorController.js";
+import { getDashboardStats } from "../controllers/instructorController.js";
 import {
   createCourseValidator,
   updateCourseValidator,
@@ -21,6 +22,7 @@ const router = express.Router();
 
 router.use(protectedRoute);
 router.use(isInstructor);
+router.get("/dashboard/stats", getDashboardStats);
 
 router.get("/courses", getMyCourses);
 router.get("/courses/:courseId", getMyCourseDetail);

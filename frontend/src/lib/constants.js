@@ -17,6 +17,7 @@ export const API_ENDPOINTS = {
   INSTRUCTOR_COURSES: "/api/instructor/courses",
   // Cart
   CART: "/api/cart",
+  INSTRUCTOR_DASHBOARD_STATS: "/api/instructor/dashboard/stats",
 };
 
 // Frontend routes

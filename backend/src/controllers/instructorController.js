@@ -456,3 +456,24 @@ export const deleteMyCourse = async (req, res) => {
     return res.status(500).json({ message: "Lỗi hệ thống" });
   }
 };
+
+export const getDashboardStats = async (req, res) => {
+  try {
+    const instructorId = req.user._id;
+
+    const courses = await Course.find({ instructorId }).select("_id");
+    const courseIds = courses.map((course) => course._id);
+
+    const totalStudents = await Enrollment.countDocuments({
+      courseId: { $in: courseIds },
+    });
+
+    return res.status(200).json({
+      totalStudents,
+      totalCourses: courses.length,
+    });
+  } catch (error) {
+    console.error("Lỗi khi lấy thống kê dashboard", error);
+    return res.status(500).json({ message: "Lỗi hệ thống" });
+  }
+};
