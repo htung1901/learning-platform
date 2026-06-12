@@ -57,6 +57,7 @@ export default function InstructorCourseDetailPage() {
   const [course, setCourse] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [prereqCourses, setPrereqCourses] = useState([]);
 
   useEffect(() => {
@@ -96,7 +97,7 @@ export default function InstructorCourseDetailPage() {
             try {
               const resp = await courseService.getCourseById(pid);
               return resp?.data || resp?.course || resp;
-            // eslint-disable-next-line no-unused-vars
+              // eslint-disable-next-line no-unused-vars
             } catch (err) {
               return null;
             }
@@ -105,7 +106,7 @@ export default function InstructorCourseDetailPage() {
 
         if (cancelled) return;
         setPrereqCourses(results.filter(Boolean));
-      // eslint-disable-next-line no-unused-vars
+        // eslint-disable-next-line no-unused-vars
       } catch (err) {
         if (!cancelled) setPrereqCourses([]);
       }
@@ -396,6 +397,35 @@ export default function InstructorCourseDetailPage() {
       </section>
 
       <div className="flex items-center justify-end gap-3">
+        {course &&
+          (course.status === "draft" || course.status === "rejected") && (
+            <button
+              type="button"
+              onClick={async () => {
+                if (isSubmitting) return;
+                try {
+                  setIsSubmitting(true);
+                  const updated = await instructorService.submitCourseForReview(
+                    course._id,
+                  );
+                  setCourse(updated);
+                  toast.success("Đã gửi khóa học lên chờ duyệt");
+                } catch (error) {
+                  if (isAuthenticated) {
+                    toast.error(
+                      error?.response?.data?.message || "Lỗi khi gửi duyệt",
+                    );
+                  }
+                } finally {
+                  setIsSubmitting(false);
+                }
+              }}
+              disabled={isSubmitting}
+              className="inline-flex items-center gap-2 rounded-2xl border border-amber-300/30 bg-amber-500/10 px-5 py-3 text-sm font-semibold text-amber-200 transition hover:bg-amber-500/20 disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {isSubmitting ? "Đang gửi..." : "Gửi duyệt"}
+            </button>
+          )}
         <button
           type="button"
           onClick={() => navigate(manageCoursesPath)}

@@ -89,6 +89,7 @@ export default function CourseDetailPage() {
     return hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
   };
 
+  // eslint-disable-next-line no-unused-vars
   const outcomes = course?.outcomes || course?.prerequisites || [];
   const firstLessonId = course?.lessons?.[0]?._id;
 
