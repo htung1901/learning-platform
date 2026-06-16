@@ -45,146 +45,135 @@ function topoSort(courses) {
   return out;
 }
 
-/**
- * Compute prerequisite closure for each course (memoized DFS).
- * Returns Map courseId -> Set(courseId...)
- */
-function computeClosures(courses) {
+
+
+function branchAndBoundSelect(courses, timeLimitSeconds) {
+  let bestValue = 0;
+  let bestChosen = new Set();
+  let bestDuration = 0;
+
   const map = buildCourseMap(courses);
-  const memo = new Map();
-  const visit = (id, seen = new Set()) => {
-    if (memo.has(id)) return memo.get(id);
-    const res = new Set();
-    const course = map.get(id);
-    if (!course) return res;
-    for (const pre of course.prerequisites || []) {
-      if (!map.has(pre)) continue;
-      if (seen.has(pre)) continue; // avoid cycles
-      seen.add(pre);
-      res.add(pre);
-      const sub = visit(pre, seen);
-      for (const x of sub) res.add(x);
-    }
-    memo.set(id, res);
-    return res;
-  };
-  for (const id of map.keys()) visit(id, new Set());
-  return memo;
-}
+  const out = topoSort(courses);
+  const topo = out || courses.map((c) => String(c._id));
+  const n = topo.length;
+  const items = topo.map((id) => map.get(id));
 
-/**
- * Build bundles: for each course, the closure set + the course itself.
- * Bundle has ids set, totalDuration (seconds), totalValueScore.
- */
-function buildBundles(courses) {
-  const map = buildCourseMap(courses);
-  const closures = computeClosures(courses);
-  const bundles = [];
-  for (const [id, course] of map) {
-    const set = new Set(closures.get(id) || []);
-    set.add(id);
-    let duration = 0;
-    let value = 0;
-    for (const cid of set) {
-      const c = map.get(cid);
-      if (!c) continue;
-      duration += c.totalDuration || 0;
-      value += c.valueScore || 0;
-    }
-    bundles.push({ ids: Array.from(set), duration, value, root: id });
-  }
-  return bundles;
-}
-
-/**
- * Convert seconds to knapsack minutes so the DP works on a smaller scale.
- * We round up to avoid undercounting short lessons.
- * If seconds is 0, return 0 (no time available).
- */
-function toKnapsackMinutes(seconds) {
-  const s = Number(seconds) || 0;
-  if (s === 0) return 0; // Special case: no time available
-  return Math.max(1, Math.ceil(s / 60));
-}
-
-/**
- * Select bundles using 0/1 knapsack DP in minutes.
- */
-function selectBundlesDP(bundles, capacityMinutes) {
-  const cap = Math.max(0, Math.floor(Number(capacityMinutes) || 0));
-  const n = bundles.length;
-  const w = bundles.map((b) => toKnapsackMinutes(b.duration));
-  const v = bundles.map((b) => b.value);
-  // DP table 1D
-  const dp = new Array(cap + 1).fill(0);
-  const pick = Array.from({ length: n }, () => new Array(cap + 1).fill(false));
-  for (let i = 0; i < n; i++) {
-    for (let j = cap; j >= w[i]; j--) {
-      const cand = dp[j - w[i]] + v[i];
-      if (cand > dp[j]) {
-        dp[j] = cand;
-        pick[i][j] = true;
+  // Compute descendants to quickly invalidate paths
+  const descendants = new Map();
+  for (const id of topo) descendants.set(id, new Set());
+  for (const id of topo) {
+    const c = map.get(id);
+    for (const pre of c.prerequisites || []) {
+      if (descendants.has(pre)) {
+        descendants.get(pre).add(id);
       }
     }
   }
-  // Reconstruct picks
-  let j = cap;
-  const chosen = new Set();
-  for (let i = n - 1; i >= 0; i--) {
-    if (pick[i][j]) {
-      chosen.add(i);
-      j -= w[i];
+
+  const descClosure = new Map();
+  const getDesc = (id) => {
+    if (descClosure.has(id)) return descClosure.get(id);
+    const res = new Set();
+    for (const child of descendants.get(id)) {
+      res.add(child);
+      for (const gc of getDesc(child)) res.add(gc);
     }
-  }
-  // Combine chosen bundles into course set, ensuring no course is double-counted
-  const chosenCourseIds = new Set();
-  let totalDuration = 0;
-  let totalValue = 0;
-  for (const idx of chosen) {
-    // Check if any course in this bundle is already selected
-    let hasOverlap = false;
-    for (const cid of bundles[idx].ids) {
-      if (chosenCourseIds.has(cid)) {
-        hasOverlap = true;
+    descClosure.set(id, res);
+    return res;
+  };
+  for (const id of topo) getDesc(id);
+
+  function getUpperBound(idx, currentWeight, currentValue, validSet) {
+    const remain = [];
+    for (let i = idx; i < n; i++) {
+      if (validSet.has(topo[i])) {
+        const c = items[i];
+        if (c)
+          remain.push({
+            id: topo[i],
+            w: c.totalDuration || 0,
+            v: c.valueScore || 0,
+          });
+      }
+    }
+    remain.sort((a, b) => b.v / Math.max(1, b.w) - a.v / Math.max(1, a.w));
+
+    let bound = currentValue;
+    let cap = timeLimitSeconds - currentWeight;
+    for (const item of remain) {
+      if (item.w <= cap) {
+        cap -= item.w;
+        bound += item.v;
+      } else {
+        bound += item.v * (cap / Math.max(1, item.w));
         break;
       }
     }
-    // Only add bundle if no courses overlap with already-selected ones
-    if (!hasOverlap) {
-      for (const cid of bundles[idx].ids) {
-        chosenCourseIds.add(cid);
-      }
-      totalDuration += bundles[idx].duration;
-      totalValue += bundles[idx].value;
-    }
+    return bound;
   }
-  return { chosenCourseIds, totalDuration, totalValue };
-}
 
-/**
- * Fallback greedy heuristic for large input: sort by value/minute ratio.
- */
-function heuristicSelect(bundles, capacityMinutes) {
-  const items = bundles.map((b) => ({
-    ...b,
-    minutes: toKnapsackMinutes(b.duration),
-    ratio: b.value / Math.max(1, toKnapsackMinutes(b.duration)),
-  }));
-  items.sort((a, b) => b.ratio - a.ratio);
-  const chosenCourseIds = new Set();
-  let usedMinutes = 0;
-  let totalValue = 0;
-  for (const it of items) {
-    // skip if any id already included
-    const overlap = it.ids.some((id) => chosenCourseIds.has(id));
-    if (overlap) continue;
-    if (usedMinutes + it.minutes <= capacityMinutes) {
-      for (const id of it.ids) chosenCourseIds.add(id);
-      usedMinutes += it.minutes;
-      totalValue += it.value;
+  const startTime = Date.now();
+  const MAX_EXECUTION_TIME_MS = 3000; // 3 seconds max for B&B
+
+  function dfs(idx, currentWeight, currentValue, validSet, chosenSet) {
+    if (Date.now() - startTime > MAX_EXECUTION_TIME_MS) return;
+
+    if (idx === n) {
+      if (currentValue > bestValue) {
+        bestValue = currentValue;
+        bestChosen = new Set(chosenSet);
+        bestDuration = currentWeight;
+      }
+      return;
     }
+
+    const bound = getUpperBound(idx, currentWeight, currentValue, validSet);
+    if (bound <= bestValue) return; // Prune
+
+    const id = topo[idx];
+    const course = items[idx];
+    const weight = course ? course.totalDuration || 0 : 0;
+    const value = course ? course.valueScore || 0 : 0;
+
+    // Branch 1: Pick item
+    if (validSet.has(id) && currentWeight + weight <= timeLimitSeconds) {
+      let prereqsMet = true;
+      for (const pre of course.prerequisites || []) {
+        if (map.has(pre) && !chosenSet.has(pre)) {
+          prereqsMet = false;
+          break;
+        }
+      }
+      if (prereqsMet) {
+        chosenSet.add(id);
+        dfs(
+          idx + 1,
+          currentWeight + weight,
+          currentValue + value,
+          validSet,
+          chosenSet,
+        );
+        chosenSet.delete(id);
+      }
+    }
+
+    // Branch 2: Do NOT pick item
+    const newValidSet = new Set(validSet);
+    newValidSet.delete(id);
+    for (const desc of descClosure.get(id)) {
+      newValidSet.delete(desc);
+    }
+    dfs(idx + 1, currentWeight, currentValue, newValidSet, chosenSet);
   }
-  return { chosenCourseIds, totalDuration: usedMinutes * 60, totalValue };
+
+  const initialValid = new Set(topo);
+  dfs(0, 0, 0, initialValid, new Set());
+
+  return {
+    chosenCourseIds: bestChosen,
+    totalDuration: bestDuration,
+    totalValue: bestValue,
+  };
 }
 
 /**
@@ -205,46 +194,25 @@ export async function generateLearningPath({
   const courses = await Course.find(candidateFilter).lean();
   if (!courses || courses.length === 0)
     return { coursesOrdered: [], totalDuration: 0, totalValue: 0 };
-  // Build bundles and try DP if small enough
-  const bundles = buildBundles(courses);
-  const timeLimitMinutes = toKnapsackMinutes(timeLimitSeconds);
-  if (bundles.length <= 60) {
-    const dpRes = selectBundlesDP(bundles, timeLimitMinutes);
-    const topo = topoSort(courses) || courses.map((c) => String(c._id));
-    // Order chosen courses by topo
-    const chosen = Array.from(dpRes.chosenCourseIds);
-    const chosenSet = new Set(chosen);
-    const ordered = topo
-      .filter((id) => chosenSet.has(id))
-      .map((id) => courses.find((c) => String(c._id) === id));
-    return {
-      coursesOrdered: ordered,
-      totalDuration: dpRes.totalDuration,
-      totalValue: dpRes.totalValue,
-    };
-  }
-  // fallback heuristic
-  const heur = heuristicSelect(bundles, timeLimitMinutes);
+
+  const { chosenCourseIds, totalDuration, totalValue } = branchAndBoundSelect(
+    courses,
+    timeLimitSeconds,
+  );
+
   const topo = topoSort(courses) || courses.map((c) => String(c._id));
-  const chosenSet = new Set(Array.from(heur.chosenCourseIds));
+  const chosenSet = new Set(Array.from(chosenCourseIds));
   const ordered = topo
     .filter((id) => chosenSet.has(id))
     .map((id) => courses.find((c) => String(c._id) === id));
+
   return {
     coursesOrdered: ordered,
-    totalDuration: heur.totalDuration,
-    totalValue: heur.totalValue,
+    totalDuration,
+    totalValue,
   };
 }
 
-export {
-  buildCourseMap,
-  topoSort,
-  computeClosures,
-  buildBundles,
-  toKnapsackMinutes,
-  selectBundlesDP,
-  heuristicSelect,
-};
+export { buildCourseMap, topoSort, branchAndBoundSelect };
 
 export default { generateLearningPath };
