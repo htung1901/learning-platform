@@ -1,5 +1,6 @@
 import Course from "../models/Course.js";
 import Enrollment from "../models/Enrollment.js";
+import LearningPath from "../models/LearningPath.js";
 
 export const getMyCourses = async (req, res) => {
   try {
@@ -123,6 +124,91 @@ export const getAvailableCourses = async (req, res) => {
 };
 
 export default { getMyCourses, getAvailableCourses };
+
+export const saveLearningPath = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const {
+      name,
+      category = "Tất cả",
+      timeLimitSeconds = 0,
+      totalDuration = 0,
+      totalValue = 0,
+      courses = [],
+    } = req.body || {};
+
+    if (!Array.isArray(courses) || courses.length === 0) {
+      return res.status(400).json({
+        message: "Lộ trình không hợp lệ. Vui lòng generate trước khi lưu.",
+      });
+    }
+
+    const normalizedCourses = courses
+      .map((course, index) => {
+        const courseId = course?.courseId || course?._id;
+        if (!courseId) return null;
+
+        return {
+          courseId,
+          order: index + 1,
+          title: course?.title || `Khóa học ${index + 1}`,
+          totalDuration: Number(course?.totalDuration) || 0,
+          valueScore: Number(course?.valueScore) || 0,
+          ratingAvg: Number(course?.ratingAvg) || 0,
+          difficultyScore: Number(course?.difficultyScore) || 0,
+          exerciseScore: Number(course?.exerciseScore) || 0,
+        };
+      })
+      .filter(Boolean);
+
+    if (normalizedCourses.length === 0) {
+      return res.status(400).json({
+        message: "Không có khóa học hợp lệ để lưu lộ trình.",
+      });
+    }
+
+    const pathName =
+      typeof name === "string" && name.trim()
+        ? name.trim()
+        : `Lộ trình ${category} - ${new Date().toLocaleString("vi-VN")}`;
+
+    const learningPath = await LearningPath.create({
+      userId,
+      name: pathName,
+      category,
+      timeLimitSeconds: Number(timeLimitSeconds) || 0,
+      totalDuration: Number(totalDuration) || 0,
+      totalValue: Number(totalValue) || 0,
+      courses: normalizedCourses,
+    });
+
+    return res.status(201).json({
+      message: "Đã lưu lộ trình học thành công",
+      data: learningPath,
+    });
+  } catch (error) {
+    console.error("Lỗi khi lưu lộ trình học", error);
+    return res.status(500).json({ message: "Lỗi hệ thống" });
+  }
+};
+
+export const getSavedLearningPaths = async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    const learningPaths = await LearningPath.find({ userId })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    return res.status(200).json({
+      message: "Lấy danh sách lộ trình đã lưu thành công",
+      data: learningPaths,
+    });
+  } catch (error) {
+    console.error("Lỗi khi lấy lộ trình đã lưu", error);
+    return res.status(500).json({ message: "Lỗi hệ thống" });
+  }
+};
 
 // Lấy payload bài học cho student (course + active lesson + enrollment)
 export const getLessonForStudent = async (req, res) => {

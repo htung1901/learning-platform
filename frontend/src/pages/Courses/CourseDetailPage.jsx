@@ -19,6 +19,22 @@ import studentService from "../../services/studentService";
 const getCourseOwnerId = (course) =>
   course?.instructorId?._id || course?.instructorId?.id || course?.instructorId;
 
+const LEVEL_DIFFICULTY_SCORE = {
+  beginner: 4,
+  intermediate: 7,
+  advanced: 10,
+};
+
+const getExerciseScore = (lessons = []) => {
+  const practiceCount = lessons.filter(
+    (lesson) => lesson?.lessonType === "practice",
+  ).length;
+
+  if (practiceCount < 3) return { exerciseScore: 3, practiceCount };
+  if (practiceCount <= 6) return { exerciseScore: 6, practiceCount };
+  return { exerciseScore: 10, practiceCount };
+};
+
 export default function CourseDetailPage() {
   const { id } = useParams();
   const [course, setCourse] = useState(null);
@@ -79,6 +95,26 @@ export default function CourseDetailPage() {
     };
   }, [id, user]);
 
+  useEffect(() => {
+    if (!course) return;
+
+    const ratingAvg = Number(course.ratingAvg || 0);
+    const difficultyScore =
+      LEVEL_DIFFICULTY_SCORE[course.level] ?? LEVEL_DIFFICULTY_SCORE.beginner;
+    const { exerciseScore, practiceCount } = getExerciseScore(course.lessons);
+
+    console.log("[course-detail][score-debug]", {
+      courseId: course._id,
+      slug: course.slug,
+      title: course.title,
+      ratingAvg,
+      difficultyScore,
+      exerciseScore,
+      practiceCount,
+      level: course.level,
+    });
+  }, [course]);
+
   if (loading) return <div className="p-8">Loading...</div>;
   if (!course) return <Navigate to={ROUTES.COURSES} replace />;
 
@@ -104,7 +140,6 @@ export default function CourseDetailPage() {
         <section className="overflow-hidden rounded-3xl border border-white/60 bg-white/80 shadow-xl backdrop-blur-xl dark:border-slate-700/60 dark:bg-slate-900/70">
           <div className="grid gap-6 p-6 lg:grid-cols-[1.1fr_0.9fr] lg:p-8">
             <div>
-              
               <h1 className="text-3xl font-black tracking-tight text-slate-900 sm:text-4xl dark:text-white">
                 {course.title}
               </h1>
@@ -126,8 +161,6 @@ export default function CourseDetailPage() {
                   {(course.ratingAvg || 0).toFixed(1)} đánh giá
                 </span>
               </div>
-
-              
             </div>
 
             <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">

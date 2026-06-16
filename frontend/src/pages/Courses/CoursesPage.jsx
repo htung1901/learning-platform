@@ -97,6 +97,7 @@ export default function CoursesPage() {
   const [learningPathPreview, setLearningPathPreview] = useState([]);
   const [learningPathTotalDuration, setLearningPathTotalDuration] = useState(0);
   const [generating, setGenerating] = useState(false);
+  const [savingPath, setSavingPath] = useState(false);
   const [learningPathMessage, setLearningPathMessage] = useState("");
 
   const totalPages =
@@ -200,10 +201,20 @@ export default function CoursesPage() {
     try {
       const hours = Math.min(150, Math.max(0, Number(timeLimitHours) || 0));
       const seconds = Math.floor(hours * 3600);
-      const res = await recommendationService.generateLearningPath({
+      console.log("[learning-path][generate][request]", {
+        timeLimitHours: hours,
         timeLimitSeconds: seconds,
         category: learningPathCategory,
       });
+
+      const res = await recommendationService.generateLearningPath({
+        timeLimitSeconds: seconds,
+        category: learningPathCategory,
+        debug: true,
+      });
+
+      console.log("[learning-path][generate][response]", res);
+
       if (res && Array.isArray(res.courses)) {
         setLearningPathPreview(limitLearningPathCourses(res.courses));
         setLearningPathTotalDuration(res.totalDuration || 0);
@@ -218,6 +229,10 @@ export default function CoursesPage() {
           timeLimitHours,
           learningPathCategory,
         );
+        console.log("[learning-path][generate][fallback-invalid-response]", {
+          preview,
+          rawResponse: res,
+        });
         setLearningPathPreview(
           limitLearningPathCourses(preview.selectedCourses),
         );
@@ -236,6 +251,10 @@ export default function CoursesPage() {
         timeLimitHours,
         learningPathCategory,
       );
+      console.log("[learning-path][generate][fallback-error]", {
+        preview,
+        error: err,
+      });
       setLearningPathPreview(limitLearningPathCourses(preview.selectedCourses));
       setLearningPathTotalDuration(preview.totalDuration);
       setLearningPathMessage(
@@ -243,6 +262,49 @@ export default function CoursesPage() {
       );
     } finally {
       setGenerating(false);
+    }
+  };
+
+  const handleSaveLearningPath = async () => {
+    if (!learningPathPreview.length) {
+      setLearningPathMessage(
+        "Chưa có lộ trình để lưu. Hãy bấm Generate trước.",
+      );
+      return;
+    }
+
+    setSavingPath(true);
+    try {
+      const payload = {
+        category: learningPathCategory,
+        timeLimitSeconds:
+          Math.floor(
+            Math.min(150, Math.max(0, Number(timeLimitHours) || 0)) * 3600,
+          ) || 0,
+        totalDuration: learningPathTotalDuration,
+        totalValue: learningPathPreview.reduce(
+          (sum, course) => sum + (Number(course.valueScore) || 0),
+          0,
+        ),
+        courses: learningPathPreview.map((course) => ({
+          courseId: course._id,
+          title: course.title,
+          totalDuration: course.totalDuration,
+          valueScore: course.valueScore,
+          ratingAvg: course.ratingAvg,
+          difficultyScore: course.difficultyScore,
+          exerciseScore: course.exerciseScore,
+        })),
+      };
+
+      await studentService.saveLearningPath(payload);
+      setLearningPathMessage("Đã lưu lộ trình học thành công.");
+    } catch (error) {
+      const message =
+        error?.response?.data?.message || "Không thể lưu lộ trình học.";
+      setLearningPathMessage(message);
+    } finally {
+      setSavingPath(false);
     }
   };
 
@@ -618,6 +680,17 @@ export default function CoursesPage() {
                   className={`inline-flex h-12 w-full items-center justify-center rounded-xl bg-linear-to-r from-amber-300 via-orange-400 to-yellow-300 px-4 text-sm font-bold text-slate-900 shadow-lg shadow-amber-500/25 transition hover:-translate-y-0.5 hover:shadow-xl hover:shadow-amber-500/30 ${generating ? "opacity-60 cursor-wait" : ""}`}
                 >
                   {generating ? "Đang tạo..." : "Generate"}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleSaveLearningPath}
+                  disabled={
+                    savingPath || generating || !learningPathPreview.length
+                  }
+                  className={`inline-flex h-12 w-full items-center justify-center rounded-xl border border-cyan-300 bg-cyan-50 px-4 text-sm font-bold text-cyan-800 transition hover:bg-cyan-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-cyan-800/70 dark:bg-cyan-900/20 dark:text-cyan-300 dark:hover:bg-cyan-900/30`}
+                >
+                  {savingPath ? "Đang lưu..." : "Lưu lộ trình"}
                 </button>
 
                 {learningPathMessage ? (

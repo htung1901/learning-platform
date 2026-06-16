@@ -24,6 +24,14 @@ const studentService = {
     });
     return response.data;
   },
+  saveLearningPath: async (payload) => {
+    const response = await api.post("/api/student/learning-paths", payload);
+    return response.data;
+  },
+  getSavedLearningPaths: async () => {
+    const response = await api.get("/api/student/learning-paths");
+    return response.data;
+  },
 };
 
 export default studentService;

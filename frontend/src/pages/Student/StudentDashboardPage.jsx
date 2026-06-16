@@ -6,6 +6,7 @@ import {
   ArrowRight,
   ChevronLeft,
   ChevronRight,
+  Sparkles,
 } from "lucide-react";
 import { useAuthStore } from "../../store/authStore";
 import { ROUTES } from "../../lib/constants";
@@ -34,6 +35,7 @@ export default function StudentDashboardPage() {
   const role = user?.role || "student";
   const [activeTab, setActiveTab] = useState("all");
   const [courses, setCourses] = useState([]);
+  const [savedLearningPaths, setSavedLearningPaths] = useState([]);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const cardsScrollRef = useRef(null);
@@ -45,12 +47,17 @@ export default function StudentDashboardPage() {
       setLoading(true);
       setErrorMessage("");
       try {
-        const response = await studentService.getMyCourses();
+        const [coursesResponse, learningPathsResponse] = await Promise.all([
+          studentService.getMyCourses(),
+          studentService.getSavedLearningPaths(),
+        ]);
         if (!mounted) return;
-        setCourses(response?.data || []);
+        setCourses(coursesResponse?.data || []);
+        setSavedLearningPaths(learningPathsResponse?.data || []);
       } catch (error) {
         if (!mounted) return;
         setCourses([]);
+        setSavedLearningPaths([]);
         const apiMessage = error?.response?.data?.message;
         if (apiMessage) {
           setErrorMessage(apiMessage);
@@ -156,7 +163,6 @@ export default function StudentDashboardPage() {
               <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl dark:text-white">
                 Xin chào, {user?.displayName || user?.username || "Student"}
               </h1>
-              
             </div>
           </div>
         </section>
@@ -342,6 +348,66 @@ export default function StudentDashboardPage() {
               </div>
             ) : null}
           </div>
+        </section>
+
+        <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+              Lộ trình học gợi ý đã lưu
+            </h2>
+            <span className="inline-flex items-center gap-1 rounded-full bg-cyan-100 px-3 py-1 text-xs font-semibold text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300">
+              <Sparkles className="h-3.5 w-3.5" />
+              {savedLearningPaths.length} lộ trình
+            </span>
+          </div>
+
+          {savedLearningPaths.length === 0 ? (
+            <div className="mt-5 rounded-xl border border-dashed border-slate-300 p-6 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
+              Bạn chưa lưu lộ trình nào. Vào trang khóa học và bấm Generate, sau
+              đó chọn Lưu lộ trình.
+            </div>
+          ) : (
+            <div className="mt-5 grid gap-4 lg:grid-cols-2">
+              {savedLearningPaths.map((path) => (
+                <article
+                  key={path._id}
+                  className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/40"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                        {path.name}
+                      </h3>
+                      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                        Danh mục: {path.category || "Tất cả"} • Lưu lúc{" "}
+                        {formatDate(path.createdAt)}
+                      </p>
+                    </div>
+                    <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                      {path.courses?.length || 0} khóa
+                    </span>
+                  </div>
+
+                  <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">
+                    Tổng thời lượng: {formatDuration(path.totalDuration || 0)} •
+                    Tổng điểm: {Number(path.totalValue || 0).toFixed(1)}
+                  </p>
+
+                  <div className="mt-3 space-y-2">
+                    {(path.courses || []).slice(0, 5).map((course, index) => (
+                      <Link
+                        key={`${path._id}-${course.courseId}-${index}`}
+                        to={`/courses/${course.courseId}`}
+                        className="block rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 transition hover:border-cyan-300 hover:text-cyan-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
+                      >
+                        {index + 1}. {course.title}
+                      </Link>
+                    ))}
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
         </section>
       </div>
     </div>

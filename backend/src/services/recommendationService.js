@@ -1,5 +1,143 @@
 import Course from "../models/Course.js";
 
+const LEVEL_DIFFICULTY_SCORE = {
+  beginner: 4,
+  intermediate: 7,
+  advanced: 10,
+};
+
+function toOneDecimal(value) {
+  return Math.round(Number(value || 0) * 10) / 10;
+}
+
+function computeExerciseScore(lessons = []) {
+  const practiceCount = lessons.filter(
+    (lesson) => lesson?.lessonType === "practice",
+  ).length;
+
+  if (practiceCount < 3) return 3;
+  if (practiceCount <= 6) return 6;
+  return 10;
+}
+
+function deriveValueScoreFactors(course) {
+  const ratingAvg = Number(course?.ratingAvg || 0);
+  const difficultyScore =
+    LEVEL_DIFFICULTY_SCORE[course?.level] ?? LEVEL_DIFFICULTY_SCORE.beginner;
+  const exerciseScore = computeExerciseScore(course?.lessons || []);
+  const ratingScoreCurrentModel = Math.min(10, Math.max(0, ratingAvg * 2));
+
+  const formulaByRequestRaw =
+    0.5 * ratingAvg + 0.3 * difficultyScore + 0.2 * exerciseScore;
+  const formulaCurrentModelRaw =
+    0.5 * ratingScoreCurrentModel + 0.3 * difficultyScore + 0.2 * exerciseScore;
+
+  return {
+    ratingAvg,
+    difficultyScore,
+    exerciseScore,
+    ratingScoreCurrentModel,
+    valueScoreByRequestedFormula: toOneDecimal(formulaByRequestRaw),
+    valueScoreByCurrentModel: toOneDecimal(formulaCurrentModelRaw),
+    valueScoreStored: Number(course?.valueScore || 0),
+    deltaStoredVsRequested: toOneDecimal(
+      Number(course?.valueScore || 0) - formulaByRequestRaw,
+    ),
+    deltaStoredVsCurrentModel: toOneDecimal(
+      Number(course?.valueScore || 0) - formulaCurrentModelRaw,
+    ),
+  };
+}
+
+function toHours(seconds = 0) {
+  return Number(((Number(seconds) || 0) / 3600).toFixed(2));
+}
+
+function formatDurationLabel(seconds = 0) {
+  const total = Math.max(0, Math.floor(Number(seconds) || 0));
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const secs = total % 60;
+
+  const parts = [];
+  if (hours > 0) parts.push(`${hours} giờ`);
+  if (minutes > 0) parts.push(`${minutes} phút`);
+  if (secs > 0 || parts.length === 0) parts.push(`${secs} giây`);
+
+  return parts.join(" ");
+}
+
+function logRecommendationComputation({
+  phase,
+  timeLimitSeconds,
+  candidateFilter,
+  candidates = [],
+  selected = [],
+  totalDuration = 0,
+  totalValue = 0,
+}) {
+  const selectedDurationCheck = selected.reduce(
+    (sum, c) => sum + (Number(c?.totalDuration) || 0),
+    0,
+  );
+  const selectedValueCheck = selected.reduce(
+    (sum, c) => sum + (Number(c?.valueScore) || 0),
+    0,
+  );
+
+  console.log("[recommendation][debug]", {
+    phase,
+    timeLimitSeconds,
+    timeLimit: formatDurationLabel(timeLimitSeconds),
+    timeLimitHours: toHours(timeLimitSeconds),
+    candidateCount: candidates.length,
+    selectedCount: selected.length,
+    totalDurationSeconds: totalDuration,
+    totalDuration: formatDurationLabel(totalDuration),
+    totalDurationHours: toHours(totalDuration),
+    totalDurationRecheckSeconds: selectedDurationCheck,
+    totalDurationRecheck: formatDurationLabel(selectedDurationCheck),
+    totalValue,
+    totalValueRecheck: Number(selectedValueCheck.toFixed(2)),
+    candidateFilter,
+  });
+
+  if (candidates.length > 0) {
+    console.log(
+      "[recommendation][debug][candidates]",
+      candidates.map((c) => ({
+        ...deriveValueScoreFactors(c),
+        id: String(c._id),
+        slug: c.slug,
+        title: c.title,
+        level: c.level,
+        tags: c.tags,
+        prerequisites: c.prerequisites || [],
+        totalDurationSeconds: c.totalDuration || 0,
+        totalDuration: formatDurationLabel(c.totalDuration || 0),
+        totalDurationHours: toHours(c.totalDuration || 0),
+        valueScore: c.valueScore || 0,
+      })),
+    );
+  }
+
+  if (selected.length > 0) {
+    console.log(
+      "[recommendation][debug][selected]",
+      selected.map((c) => ({
+        ...deriveValueScoreFactors(c),
+        id: String(c._id),
+        slug: c.slug,
+        title: c.title,
+        totalDurationSeconds: c.totalDuration || 0,
+        totalDuration: formatDurationLabel(c.totalDuration || 0),
+        totalDurationHours: toHours(c.totalDuration || 0),
+        valueScore: c.valueScore || 0,
+      })),
+    );
+  }
+}
+
 /**
  * Build a map of courseId -> course document for candidates.
  * @param {Array} courses
@@ -44,8 +182,6 @@ function topoSort(courses) {
   if (out.length !== map.size) return null;
   return out;
 }
-
-
 
 function branchAndBoundSelect(courses, timeLimitSeconds) {
   let bestValue = 0;
@@ -184,16 +320,33 @@ function branchAndBoundSelect(courses, timeLimitSeconds) {
 export async function generateLearningPath({
   candidateFilter = {},
   timeLimitSeconds = 0,
+  debug = false,
 }) {
   // Early return for insufficient time
   if (timeLimitSeconds < 60) {
+    if (debug) {
+      logRecommendationComputation({
+        phase: "early-return-time-limit",
+        timeLimitSeconds,
+        candidateFilter,
+      });
+    }
     return { coursesOrdered: [], totalDuration: 0, totalValue: 0 };
   }
 
   // Fetch candidate courses
   const courses = await Course.find(candidateFilter).lean();
-  if (!courses || courses.length === 0)
+  if (!courses || courses.length === 0) {
+    if (debug) {
+      logRecommendationComputation({
+        phase: "early-return-no-candidate",
+        timeLimitSeconds,
+        candidateFilter,
+        candidates: [],
+      });
+    }
     return { coursesOrdered: [], totalDuration: 0, totalValue: 0 };
+  }
 
   const { chosenCourseIds, totalDuration, totalValue } = branchAndBoundSelect(
     courses,
@@ -205,6 +358,18 @@ export async function generateLearningPath({
   const ordered = topo
     .filter((id) => chosenSet.has(id))
     .map((id) => courses.find((c) => String(c._id) === id));
+
+  if (debug) {
+    logRecommendationComputation({
+      phase: "final-result",
+      timeLimitSeconds,
+      candidateFilter,
+      candidates: courses,
+      selected: ordered,
+      totalDuration,
+      totalValue,
+    });
+  }
 
   return {
     coursesOrdered: ordered,

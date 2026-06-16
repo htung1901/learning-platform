@@ -5,6 +5,8 @@ import {
   getMyCourses,
   getLessonForStudent,
   updateLessonProgress,
+  saveLearningPath,
+  getSavedLearningPaths,
 } from "../controllers/studentController.js";
 
 const router = express.Router();
@@ -15,6 +17,8 @@ router.use(protectedRoute);
 // Lấy danh sách khóa học chưa mua
 router.get("/courses/available", getAvailableCourses);
 router.get("/courses/my", getMyCourses);
+router.post("/learning-paths", saveLearningPath);
+router.get("/learning-paths", getSavedLearningPaths);
 
 // Lấy bài học cụ thể cho student
 router.get("/courses/:courseId/lessons/:lessonId", getLessonForStudent);
