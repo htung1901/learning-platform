@@ -67,7 +67,6 @@ export const createCourse = async (req, res) => {
       prerequisites,
       tags,
       status,
-      valueScore,
     } = req.body;
 
     const existing = await Course.findOne({
@@ -98,7 +97,6 @@ export const createCourse = async (req, res) => {
       submittedAt: finalStatus === "pending" ? new Date() : undefined,
       prerequisites: prerequisites || [],
       tags: tags || [],
-      valueScore: Math.min(10, Math.max(1, Number(valueScore) || 1)),
     });
 
     return res.status(201).json({
@@ -194,7 +192,6 @@ export const updateMyCourse = async (req, res) => {
       "price",
       "prerequisites",
       "tags",
-      "valueScore",
     ];
 
     fields.forEach((field) => {
@@ -280,6 +277,7 @@ export const createLesson = async (req, res) => {
 
     const {
       title,
+      lessonType = "theory",
       videoUrl,
       duration = 0,
       summary,
@@ -292,10 +290,18 @@ export const createLesson = async (req, res) => {
       return res.status(400).json({ message: "Tiêu đề bài học là bắt buộc" });
     }
 
+    if (!["theory", "practice"].includes(lessonType)) {
+      return res.status(400).json({
+        message:
+          "Loại bài học không hợp lệ. Chỉ chấp nhận theory hoặc practice.",
+      });
+    }
+
     const lessonOrder = Number(order) || (course.lessons?.length || 0) + 1;
 
     const lesson = {
       title: title.trim(),
+      lessonType,
       videoUrl: videoUrl || undefined,
       duration: Number(duration) || 0,
       summary: summary || undefined,
@@ -344,6 +350,7 @@ export const updateLesson = async (req, res) => {
 
     const {
       title,
+      lessonType,
       videoUrl,
       duration = 0,
       summary,
@@ -358,6 +365,16 @@ export const updateLesson = async (req, res) => {
       }
 
       lesson.title = title.trim();
+    }
+
+    if (lessonType !== undefined) {
+      if (!["theory", "practice"].includes(lessonType)) {
+        return res.status(400).json({
+          message:
+            "Loại bài học không hợp lệ. Chỉ chấp nhận theory hoặc practice.",
+        });
+      }
+      lesson.lessonType = lessonType;
     }
 
     if (videoUrl !== undefined) {

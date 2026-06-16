@@ -83,11 +83,11 @@ export default function InstructorCreateCoursePage() {
     {
       id: 1,
       title: "",
+      lessonType: "theory",
       videoUrl: "",
       durationHours: "",
       durationMinutes: "",
       durationSeconds: "",
-      type: "Video",
       summary: "",
       attachments: [],
     },
@@ -191,7 +191,7 @@ export default function InstructorCreateCoursePage() {
         if (cancelled) return;
         // API returns { message, data: courses, pagination }
         setCandidateCourses(data.data || data.courses || data.docs || []);
-      // eslint-disable-next-line no-unused-vars
+        // eslint-disable-next-line no-unused-vars
       } catch (err) {
         // silently ignore search errors but show toast once
         toast.error("Không thể tìm khóa học để làm điều kiện tiên quyết");
@@ -278,11 +278,11 @@ export default function InstructorCreateCoursePage() {
       {
         id: Date.now(),
         title: "",
+        lessonType: "theory",
         videoUrl: "",
         durationHours: "",
         durationMinutes: "",
         durationSeconds: "",
-        type: "Video",
         summary: "",
         attachments: [],
       },
@@ -358,6 +358,7 @@ export default function InstructorCreateCoursePage() {
       for (const lesson of lessons) {
         const payload = {
           title: lesson.title,
+          lessonType: lesson.lessonType || "theory",
           videoUrl: lesson.videoUrl,
           duration: getLessonDurationSeconds(lesson),
           summary: lesson.summary,
@@ -517,7 +518,7 @@ export default function InstructorCreateCoursePage() {
                     <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
                       Intro video (optional)
                     </span>
-                    
+
                     <input
                       className={fieldClassName}
                       placeholder="https://www.youtube.com/watch?v=..."
@@ -562,7 +563,8 @@ export default function InstructorCreateCoursePage() {
                     />
                     <p className="text-xs text-slate-500 dark:text-slate-400">
                       Điểm giúp hệ thống ưu tiên khóa học khi đề xuất lộ trình.
-                      Giá trị càng cao, mức ưu tiên càng lớn. Giá trị trong khoảng 1 - 10
+                      Giá trị càng cao, mức ưu tiên càng lớn. Giá trị trong
+                      khoảng 1 - 10
                     </p>
                   </label>
                 </div>
@@ -794,6 +796,26 @@ export default function InstructorCreateCoursePage() {
                             )
                           }
                         />
+                      </label>
+
+                      <label className="space-y-2 md:col-span-2">
+                        <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                          Loại bài học
+                        </span>
+                        <select
+                          className={fieldClassName}
+                          value={lesson.lessonType || "theory"}
+                          onChange={(event) =>
+                            handleLessonChange(
+                              lesson.id,
+                              "lessonType",
+                              event.target.value,
+                            )
+                          }
+                        >
+                          <option value="theory">Lý thuyết</option>
+                          <option value="practice">Thực hành</option>
+                        </select>
                       </label>
 
                       <label className="space-y-2 md:col-span-2">

@@ -57,13 +57,7 @@ export const createCourseValidator = (req, res, next) => {
   }
 
   if (req.body.valueScore !== undefined) {
-    const vs = Number(req.body.valueScore);
-    if (Number.isNaN(vs) || vs < 1 || vs > 10) {
-      return res
-        .status(400)
-        .json({ message: "valueScore phải là số nguyên từ 1 đến 10" });
-    }
-    req.body.valueScore = Math.floor(vs);
+    delete req.body.valueScore;
   }
 
   const normalizedPrerequisites = normalizeArray(prerequisites);
@@ -135,13 +129,7 @@ export const updateCourseValidator = (req, res, next) => {
   }
 
   if (req.body.valueScore !== undefined) {
-    const vs = Number(req.body.valueScore);
-    if (Number.isNaN(vs) || vs < 1 || vs > 10) {
-      return res
-        .status(400)
-        .json({ message: "valueScore phải là số nguyên từ 1 đến 10" });
-    }
-    req.body.valueScore = Math.floor(vs);
+    delete req.body.valueScore;
   }
 
   const normalizedPrerequisites = normalizeArray(prerequisites);

@@ -176,12 +176,12 @@ export default function InstructorEditLessonsPage() {
                   _id: lesson._id,
                   id: lesson._id || `lesson-${index + 1}`,
                   title: lesson.title || "",
+                  lessonType: lesson.lessonType || "theory",
                   videoUrl: lesson.videoUrl || "",
                   durationHours: String(hours),
                   durationMinutes: String(minutes),
                   durationSeconds: String(seconds),
                   summary: lesson.summary || "",
-                  type: "Video",
                   order: lesson.order || index + 1,
                   resources: lesson.resources || [],
                   attachments: lesson.attachments || [],
@@ -191,12 +191,12 @@ export default function InstructorEditLessonsPage() {
                 {
                   id: `lesson-${Date.now()}`,
                   title: "",
+                  lessonType: "theory",
                   videoUrl: "",
                   durationHours: "",
                   durationMinutes: "",
                   durationSeconds: "",
                   summary: "",
-                  type: "Video",
                   order: 1,
                   resources: [],
                   attachments: [],
@@ -290,12 +290,12 @@ export default function InstructorEditLessonsPage() {
       {
         id: `lesson-${Date.now()}`,
         title: "",
+        lessonType: "theory",
         videoUrl: "",
         durationHours: "",
         durationMinutes: "",
         durationSeconds: "",
         summary: "",
-        type: "Video",
         order: prevLessons.length + 1,
         resources: [],
         attachments: [],
@@ -436,6 +436,7 @@ export default function InstructorEditLessonsPage() {
 
         const payload = {
           title: lesson.title,
+          lessonType: lesson.lessonType || "theory",
           videoUrl: lesson.videoUrl,
           duration: durationSeconds,
           summary: lesson.summary,
@@ -823,6 +824,26 @@ export default function InstructorEditLessonsPage() {
                     handleLessonChange(lesson.id, "title", event.target.value)
                   }
                 />
+              </label>
+
+              <label className="space-y-2 md:col-span-2">
+                <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                  Loại bài học
+                </span>
+                <select
+                  className={fieldClassName}
+                  value={lesson.lessonType || "theory"}
+                  onChange={(event) =>
+                    handleLessonChange(
+                      lesson.id,
+                      "lessonType",
+                      event.target.value,
+                    )
+                  }
+                >
+                  <option value="theory">Lý thuyết</option>
+                  <option value="practice">Thực hành</option>
+                </select>
               </label>
 
               <label className="space-y-2 md:col-span-2">

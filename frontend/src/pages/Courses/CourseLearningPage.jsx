@@ -12,12 +12,16 @@ import {
   PlayCircle,
   SkipForward,
   Download,
+  Star,
 } from "lucide-react";
 import { toast } from "sonner";
 import studentService from "../../services/studentService";
+import reviewService from "../../services/reviewService";
 import { ROUTES } from "../../lib/constants";
+import { useAuthStore } from "../../store/authStore";
 
 const lessonBadgeClass = {
+  theory: "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300",
   video: "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300",
   practice:
     "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
@@ -64,6 +68,7 @@ const formatDuration = (durationInSeconds = 0) => {
 export default function CourseLearningPage() {
   const { courseId, lessonId } = useParams();
   const navigate = useNavigate();
+  const authUser = useAuthStore((state) => state.user);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [initialLessonId] = useState(lessonId);
@@ -73,6 +78,44 @@ export default function CourseLearningPage() {
   const [lessons, setLessons] = useState([]);
   const [enrollment, setEnrollment] = useState(null);
   const [showCompletionModal, setShowCompletionModal] = useState(false);
+
+  // rating state
+  const [rating, setRating] = useState(0);
+  const [hoverRating, setHoverRating] = useState(0);
+  const [reviewComment, setReviewComment] = useState("");
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [hasReviewed, setHasReviewed] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadMyReviewState = async () => {
+      if (!courseId || !authUser?._id) return;
+      try {
+        const res = await reviewService.getCourseReviews(courseId, 1, 50);
+        if (!mounted) return;
+
+        const reviews = res?.reviews || [];
+        const myReview = reviews.find(
+          (r) => String(r?.userId?._id || r?.userId) === String(authUser._id),
+        );
+
+        if (myReview) {
+          setHasReviewed(true);
+          setRating(Number(myReview.rating) || 0);
+          setReviewComment(myReview.comment || "");
+        }
+      } catch {
+        // Keep UI usable even if review list fails to load.
+      }
+    };
+
+    loadMyReviewState();
+
+    return () => {
+      mounted = false;
+    };
+  }, [courseId, authUser?._id]);
 
   // Fetch course + lessons + enrollment once for the given courseId.
   // We use the lesson endpoint because it returns the course and lessons list.
@@ -178,6 +221,30 @@ export default function CourseLearningPage() {
   };
 
   const embeddedVideoSrc = getEmbeddableVideoSrc(videoSrc);
+
+  const handleSubmitReview = async () => {
+    if (rating === 0) {
+      toast.error("Vui lòng chọn số sao để đánh giá");
+      return;
+    }
+
+    setIsSubmittingReview(true);
+    try {
+      await reviewService.createReview({
+        courseId,
+        rating,
+        comment: reviewComment,
+      });
+      toast.success("Cảm ơn bạn đã đánh giá khóa học!");
+      setHasReviewed(true);
+    } catch (err) {
+      const msg =
+        err?.response?.data?.message || "Có lỗi xảy ra khi lưu đánh giá";
+      toast.error(msg);
+    } finally {
+      setIsSubmittingReview(false);
+    }
+  };
 
   return (
     <div className="relative overflow-hidden py-10 sm:py-14">
@@ -375,8 +442,6 @@ export default function CourseLearningPage() {
                     </p>
                   )}
                 </div>
-
-            
               </article>
             </div>
 
@@ -388,6 +453,101 @@ export default function CourseLearningPage() {
               <p className="mt-3 whitespace-pre-line text-sm leading-6 text-slate-600 dark:text-slate-300">
                 {courseData?.description || "Chưa có mô tả cho bài học này."}
               </p>
+            </article>
+
+            {/* Rating Section */}
+            <article className="mt-5 rounded-2xl border border-slate-200 bg-white p-6 dark:border-slate-700 dark:bg-slate-900">
+              <div className="flex items-center gap-2 text-base font-bold text-slate-900 dark:text-white mb-4">
+                <Star className="h-5 w-5 text-amber-400" />
+                Đánh giá khóa học
+              </div>
+
+              {hasReviewed ? (
+                <div className="rounded-xl bg-emerald-50 p-4 border border-emerald-100 dark:bg-emerald-900/20 dark:border-emerald-800/30">
+                  <p className="text-sm font-medium text-emerald-800 dark:text-emerald-300 text-center">
+                    Cảm ơn bạn đã gửi đánh giá. Phản hồi của bạn giúp chúng tôi
+                    cải thiện chất lượng khóa học!
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="rounded-2xl border border-slate-200/80 bg-slate-50/80 p-4 dark:border-slate-700 dark:bg-slate-800/40">
+                    <p className="text-center text-sm font-medium text-slate-600 dark:text-slate-300">
+                      Chọn điểm đánh giá từ 1 đến 5
+                    </p>
+
+                    <div className="mt-3 flex items-center justify-center gap-2 sm:gap-3">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <button
+                          key={star}
+                          type="button"
+                          className={`group inline-flex h-11 w-11 items-center justify-center rounded-xl border transition-all focus:outline-none focus:ring-2 focus:ring-cyan-500/50 sm:h-12 sm:w-12 ${
+                            (hoverRating || rating) >= star
+                              ? "border-amber-400 bg-amber-50 shadow-sm dark:bg-amber-900/20"
+                              : "border-slate-300 bg-white hover:border-amber-300 dark:border-slate-600 dark:bg-slate-900/60"
+                          }`}
+                          onMouseEnter={() => setHoverRating(star)}
+                          onMouseLeave={() => setHoverRating(0)}
+                          onClick={() => setRating(star)}
+                        >
+                          <Star
+                            className={`h-5 w-5 sm:h-6 sm:w-6 transition-colors ${
+                              (hoverRating || rating) >= star
+                                ? "fill-amber-400 text-amber-400"
+                                : "text-slate-300 dark:text-slate-600"
+                            }`}
+                          />
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+                      {[1, 2, 3, 4, 5].map((score) => (
+                        <button
+                          key={`score-${score}`}
+                          type="button"
+                          onClick={() => setRating(score)}
+                          className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
+                            rating === score
+                              ? "bg-slate-900 text-white dark:bg-cyan-500"
+                              : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-100 dark:bg-slate-900 dark:text-slate-300 dark:ring-slate-700"
+                          }`}
+                        >
+                          {score} điểm
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="review-comment"
+                      className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2"
+                    >
+                      Nhận xét của bạn (Không bắt buộc)
+                    </label>
+                    <textarea
+                      id="review-comment"
+                      rows={3}
+                      className="block w-full rounded-xl border-slate-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-white sm:text-sm p-3"
+                      placeholder="Chia sẻ cảm nhận của bạn về khóa học này..."
+                      value={reviewComment}
+                      onChange={(e) => setReviewComment(e.target.value)}
+                      disabled={isSubmittingReview}
+                    />
+                  </div>
+
+                  <div className="flex justify-end">
+                    <button
+                      onClick={handleSubmitReview}
+                      disabled={isSubmittingReview || rating === 0}
+                      className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-50 dark:bg-cyan-600 dark:hover:bg-cyan-500"
+                    >
+                      {isSubmittingReview ? "Đang gửi..." : "Gửi đánh giá"}
+                    </button>
+                  </div>
+                </div>
+              )}
             </article>
           </div>
         </section>
@@ -439,9 +599,13 @@ export default function CourseLearningPage() {
                               </span>
                             ) : null}
                             <span
-                              className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ${lessonBadgeClass[lesson.type]}`}
+                              className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ${lessonBadgeClass[lesson.lessonType || lesson.type || "theory"]}`}
                             >
-                              {lesson.type}
+                              {lesson.lessonType === "practice"
+                                ? "thực hành"
+                                : lesson.lessonType === "theory"
+                                  ? "lý thuyết"
+                                  : lesson.type}
                             </span>
                           </div>
                         </div>

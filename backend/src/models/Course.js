@@ -1,5 +1,40 @@
 import mongoose from "mongoose";
 
+const LEVEL_DIFFICULTY_SCORE = {
+  beginner: 4,
+  intermediate: 7,
+  advanced: 10,
+};
+
+const toOneDecimal = (value) => Math.round(value * 10) / 10;
+
+const clampScore = (value) => Math.min(10, Math.max(1, value));
+
+const computePracticeScore = (lessons = []) => {
+  const practiceCount = lessons.filter(
+    (lesson) => lesson?.lessonType === "practice",
+  ).length;
+
+  if (practiceCount < 3) return 3;
+  if (practiceCount <= 6) return 6;
+  return 10;
+};
+
+const computeValueScore = ({
+  ratingAvg = 0,
+  level = "beginner",
+  lessons = [],
+}) => {
+  const ratingScore = Math.min(10, Math.max(0, Number(ratingAvg) * 2));
+  const difficultyScore =
+    LEVEL_DIFFICULTY_SCORE[level] ?? LEVEL_DIFFICULTY_SCORE.beginner;
+  const practiceScore = computePracticeScore(lessons);
+
+  const score = 0.5 * ratingScore + 0.3 * difficultyScore + 0.2 * practiceScore;
+
+  return toOneDecimal(clampScore(score));
+};
+
 const courseSchema = new mongoose.Schema(
   {
     instructorId: {
@@ -47,7 +82,7 @@ const courseSchema = new mongoose.Schema(
     totalStudents: { type: Number, default: 0 },
     ratingAvg: { type: Number, default: 0 },
     ratingCount: { type: Number, default: 0 },
-    // Value score used by Learning Path Recommendation: integer 1..10
+    // Value score used by Learning Path Recommendation: 1..10
     valueScore: { type: Number, default: 1, min: 1, max: 10 },
   },
   {
@@ -59,6 +94,11 @@ const courseSchema = new mongoose.Schema(
 const lessonSchema = new mongoose.Schema(
   {
     title: { type: String, required: true },
+    lessonType: {
+      type: String,
+      enum: ["theory", "practice"],
+      default: "theory",
+    },
     videoUrl: { type: String },
     duration: { type: Number, default: 0 }, // seconds
     summary: { type: String },
@@ -81,6 +121,14 @@ const lessonSchema = new mongoose.Schema(
 );
 
 courseSchema.add({ lessons: { type: [lessonSchema], default: [] } });
+
+courseSchema.pre("save", function () {
+  this.valueScore = computeValueScore({
+    ratingAvg: this.ratingAvg,
+    level: this.level,
+    lessons: this.lessons || [],
+  });
+});
 
 // Index để tìm khóa học chờ duyệt
 courseSchema.index({ status: 1, submittedAt: 1 });

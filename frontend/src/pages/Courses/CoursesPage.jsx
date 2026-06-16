@@ -52,8 +52,8 @@ const buildLearningPathPreview = (
     const rightDuration = Math.max(0, Number(right.totalDuration) || 0);
     if (leftDuration !== rightDuration) return leftDuration - rightDuration;
 
-    const leftRating = Number(left.ratingAvg || left.rating || 0);
-    const rightRating = Number(right.ratingAvg || right.rating || 0);
+    const leftRating = Number(left.ratingAvg || 0);
+    const rightRating = Number(right.ratingAvg || 0);
     if (leftRating !== rightRating) return rightRating - leftRating;
 
     return (
@@ -436,7 +436,9 @@ export default function CoursesPage() {
                               </span>
                               <span className="inline-flex items-center gap-1">
                                 <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
-                                {course.rating || "-"}
+                                {Number(course.ratingAvg || 0) > 0
+                                  ? `${Number(course.ratingAvg).toFixed(1)} (${Number(course.ratingCount || 0)})`
+                                  : "Chưa có đánh giá"}
                               </span>
                             </div>
 

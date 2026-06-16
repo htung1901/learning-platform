@@ -14,6 +14,7 @@ import paymentRoute from "./routes/paymentRoute.js";
 import uploadRoute from "./routes/uploadRoute.js";
 import cartRoute from "./routes/cartRoute.js";
 import recommendationRoute from "./routes/recommendationRoute.js";
+import reviewRoute from "./routes/reviewRoute.js";
 
 dotenv.config();
 
@@ -81,6 +82,9 @@ app.use("/api/courses", courseRoute);
 
 // public recommendation routes: can work for guests, and use auth token when present
 app.use("/api/recommendations", recommendationRoute);
+
+// review routes: get is public, create/update/delete are protected in route-level middleware
+app.use("/api/reviews", reviewRoute);
 
 // private routes
 app.use(protectedRoute);

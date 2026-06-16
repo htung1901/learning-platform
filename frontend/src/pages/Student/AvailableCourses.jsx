@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ShoppingCart } from "lucide-react";
+import { ShoppingCart, Star } from "lucide-react";
 import { toast } from "sonner";
 import studentService from "../../services/studentService";
 import { ROUTES } from "../../lib/constants";
@@ -88,8 +88,14 @@ export default function AvailableCourses() {
                     {course.description}
                   </p>
                   <div className="mt-3 flex items-center justify-between">
-                    <div className="text-sm text-slate-600">
-                      {course.totalLessons || 0} bài
+                    <div className="space-y-1 text-sm text-slate-600">
+                      <div>{course.totalLessons || 0} bài</div>
+                      <div className="inline-flex items-center gap-1 text-amber-600">
+                        <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
+                        {Number(course.ratingAvg || 0) > 0
+                          ? `${Number(course.ratingAvg).toFixed(1)} (${Number(course.ratingCount || 0)})`
+                          : "Chưa có đánh giá"}
+                      </div>
                     </div>
                     <div className="flex items-center gap-2">
                       <button
