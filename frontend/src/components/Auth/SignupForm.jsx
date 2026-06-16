@@ -21,11 +21,11 @@ export default function SignupForm({ onSubmit, isLoading }) {
       {/* Username */}
       <div>
         <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">
-          Tên người dùng *
+          Tên tài khoản
         </label>
         <input
           type="text"
-          placeholder="username"
+          placeholder="Account Name"
           disabled={isLoading}
           {...register("username")}
           className="w-full px-4 py-3 border-2 border-slate-200 dark:border-slate-600 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 dark:bg-slate-700 dark:text-white transition disabled:opacity-50 disabled:cursor-not-allowed bg-slate-50"

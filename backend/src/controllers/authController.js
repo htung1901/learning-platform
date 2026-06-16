@@ -23,14 +23,19 @@ const REFRESH_COOKIE_CLEAR_OPTIONS = {
 
 export const signUp = async (req, res) => {
   try {
-    const { username, password, email, firstName, lastName } = req.body;
+    const { username, password, email, firstName, lastName, displayName } =
+      req.body;
 
-    // Luồng: kiểm tra input -> kiểm tra username tồn tại -> mã hóa pwd -> tạo user -> return mã 204
+    // Tính toán tên hiển thị: Ưu tiên displayName gửi từ frontend mới, nếu dùng frontend cũ thì ghép firstName + lastName
+    const finalDisplayName =
+      displayName ||
+      (firstName && lastName
+        ? `${firstName} ${lastName}`
+        : firstName || lastName || "User");
 
-    if (!username || !password || !email || !firstName || !lastName) {
+    if (!username || !password || !email || !finalDisplayName) {
       return res.status(400).json({
-        message:
-          "Không thể thiếu username, password, email, firstName và lastName",
+        message: "Không thể thiếu username, password, email, và tên hiển thị",
       });
     }
 
@@ -49,7 +54,7 @@ export const signUp = async (req, res) => {
       username,
       hashedPassword,
       email,
-      displayName: `${firstName} ${lastName}`,
+      displayName: finalDisplayName,
       role: "student",
     });
 

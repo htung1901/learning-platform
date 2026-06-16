@@ -23,17 +23,11 @@ const apiAuthService = {
 
   // Signup then auto login to keep existing frontend UX
   signup: async (data) => {
-    const [firstName = "User", ...rest] = (data.displayName || "")
-      .trim()
-      .split(/\s+/);
-    const lastName = rest.join(" ") || firstName;
-
     await api.post(API_ENDPOINTS.SIGNUP, {
       username: data.username,
       email: data.email,
       password: data.password,
-      firstName,
-      lastName,
+      displayName: data.displayName,
       role: data.role,
     });
 
