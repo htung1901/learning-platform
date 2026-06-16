@@ -183,14 +183,63 @@ function topoSort(courses) {
   return out;
 }
 
+function getAcyclicTopoOrder(courses) {
+  const map = buildCourseMap(courses);
+  const inDeg = new Map();
+  const adj = new Map();
+
+  for (const [id] of map) {
+    inDeg.set(id, 0);
+    adj.set(id, new Set());
+  }
+
+  for (const [id, c] of map) {
+    for (const pre of c.prerequisites || []) {
+      if (!map.has(pre)) continue;
+      adj.get(pre).add(id);
+      inDeg.set(id, inDeg.get(id) + 1);
+    }
+  }
+
+  const q = [];
+  for (const [id, deg] of inDeg) if (deg === 0) q.push(id);
+
+  const order = [];
+  while (q.length) {
+    const n = q.shift();
+    order.push(n);
+    for (const nb of adj.get(n)) {
+      inDeg.set(nb, inDeg.get(nb) - 1);
+      if (inDeg.get(nb) === 0) q.push(nb);
+    }
+  }
+
+  const hasCycle = order.length !== map.size;
+  return { order, hasCycle };
+}
+
 function branchAndBoundSelect(courses, timeLimitSeconds) {
   let bestValue = 0;
   let bestChosen = new Set();
   let bestDuration = 0;
 
   const map = buildCourseMap(courses);
-  const out = topoSort(courses);
-  const topo = out || courses.map((c) => String(c._id));
+  const { order: topo, hasCycle } = getAcyclicTopoOrder(courses);
+
+  if (hasCycle) {
+    console.warn(
+      "[recommendation] Detected cyclic prerequisites. Cyclic courses are excluded from selection.",
+    );
+  }
+
+  if (topo.length === 0) {
+    return {
+      chosenCourseIds: bestChosen,
+      totalDuration: bestDuration,
+      totalValue: bestValue,
+    };
+  }
+
   const n = topo.length;
   const items = topo.map((id) => map.get(id));
 
@@ -353,7 +402,7 @@ export async function generateLearningPath({
     timeLimitSeconds,
   );
 
-  const topo = topoSort(courses) || courses.map((c) => String(c._id));
+  const { order: topo } = getAcyclicTopoOrder(courses);
   const chosenSet = new Set(Array.from(chosenCourseIds));
   const ordered = topo
     .filter((id) => chosenSet.has(id))
