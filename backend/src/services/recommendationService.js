@@ -230,6 +230,10 @@ function branchAndBoundSelect(courses, timeLimitSeconds) {
     console.warn(
       "[recommendation] Detected cyclic prerequisites. Cyclic courses are excluded from selection.",
     );
+    console.log("[recommendation][debug] prerequisite-cycle-detected", {
+      totalVertices: map.size,
+      topoVertices: topo.length,
+    });
   }
 
   if (topo.length === 0) {
