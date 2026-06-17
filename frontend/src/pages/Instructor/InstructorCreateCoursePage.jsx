@@ -54,14 +54,6 @@ const getLessonDurationSeconds = (lesson) => {
   return hours * 3600 + minutes * 60 + seconds;
 };
 
-const sanitizeValueScoreInput = (value) => {
-  const digitsOnly = String(value ?? "").replace(/\D/g, "");
-
-  if (!digitsOnly) return "";
-
-  return String(Math.min(10, Math.max(1, Number.parseInt(digitsOnly, 10))));
-};
-
 export default function InstructorCreateCoursePage() {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuthStore();
@@ -71,7 +63,7 @@ export default function InstructorCreateCoursePage() {
   const [courseCategory, setCourseCategory] = useState("Lập trình");
   const [courseLevel, setCourseLevel] = useState("beginner");
   const [coursePrice, setCoursePrice] = useState(0);
-  const [courseValueScore, setCourseValueScore] = useState("1");
+  const [courseValueScore] = useState("1");
   const [thumbnailUrl, setThumbnailUrl] = useState("");
   const [thumbnailFile, setThumbnailFile] = useState(null);
   const [thumbnailPreviewUrl, setThumbnailPreviewUrl] = useState("");
@@ -536,36 +528,6 @@ export default function InstructorCreateCoursePage() {
                       value={calculateTotalDuration()}
                       readOnly
                     />
-                  </label>
-
-                  <label className="space-y-2 md:col-span-2">
-                    <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                      Điểm ưu tiên
-                    </span>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      maxLength={2}
-                      className={fieldClassName}
-                      placeholder="Điểm ưu tiên từ 1 - 10"
-                      value={courseValueScore}
-                      onChange={(e) =>
-                        setCourseValueScore(
-                          sanitizeValueScoreInput(e.target.value),
-                        )
-                      }
-                      onBlur={() => {
-                        setCourseValueScore((current) =>
-                          current ? sanitizeValueScoreInput(current) : "1",
-                        );
-                      }}
-                    />
-                    <p className="text-xs text-slate-500 dark:text-slate-400">
-                      Điểm giúp hệ thống ưu tiên khóa học khi đề xuất lộ trình.
-                      Giá trị càng cao, mức ưu tiên càng lớn. Giá trị trong
-                      khoảng 1 - 10
-                    </p>
                   </label>
                 </div>
               </article>
